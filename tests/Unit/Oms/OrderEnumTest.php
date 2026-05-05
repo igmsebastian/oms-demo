@@ -14,7 +14,7 @@ test('order statuses expose stable integer values and labels', function () {
         ->and(OrderStatus::Completed->value)->toBe(7)
         ->and(OrderStatus::CancellationRequested->nameValue())->toBe('cancellation_requested')
         ->and(OrderStatus::CancellationRequested->label())->toBe('Cancellation Requested')
-        ->and(collect(OrderStatus::cases())->every(fn (OrderStatus $status): bool => is_int($status->value)))->toBeTrue();
+        ->and(array_map(fn (OrderStatus $status): int => $status->value, OrderStatus::cases()))->toBe(range(1, 12));
 });
 
 test('user role labels stay stable', function () {

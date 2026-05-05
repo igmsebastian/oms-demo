@@ -154,7 +154,7 @@ class OrderNotificationService
                     ->get(),
                 default => [],
             })
-            ->filter(fn (mixed $recipient): bool => $recipient instanceof User && filled($recipient->email))
+            ->filter(fn (User $recipient): bool => filled($recipient->email))
             ->unique('id')
             ->values();
     }

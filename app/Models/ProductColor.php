@@ -15,6 +15,9 @@ class ProductColor extends Model
     /** @use HasFactory<ProductColorFactory> */
     use HasFactory, HasUlids;
 
+    /**
+     * @return HasMany<Product, $this>
+     */
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);

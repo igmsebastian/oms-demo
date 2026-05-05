@@ -168,7 +168,7 @@ class OrderService
 
         return $this->cache->restorePaginator(
             $payload,
-            $this->orders->findManyForListing($payload['ids'] ?? []),
+            $this->orders->findManyForListing($payload['ids']),
         );
     }
 
@@ -187,7 +187,7 @@ class OrderService
 
         return $this->cache->restorePaginator(
             $payload,
-            $this->orders->findManyForListing($payload['ids'] ?? []),
+            $this->orders->findManyForListing($payload['ids']),
         );
     }
 

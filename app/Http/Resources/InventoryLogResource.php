@@ -2,9 +2,13 @@
 
 namespace App\Http\Resources;
 
+use App\Models\InventoryLog;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin InventoryLog
+ */
 class InventoryLogResource extends JsonResource
 {
     /**
@@ -18,7 +22,7 @@ class InventoryLogResource extends JsonResource
             'order_id' => $this->order_id,
             'order_item_id' => $this->order_item_id,
             'changed_by_user_id' => $this->changed_by_user_id,
-            'change_type' => $this->change_type?->value,
+            'change_type' => $this->change_type->value,
             'quantity_change' => $this->quantity_change,
             'stock_before' => $this->stock_before,
             'stock_after' => $this->stock_after,

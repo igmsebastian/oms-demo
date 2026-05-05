@@ -2,9 +2,13 @@
 
 namespace App\Http\Resources;
 
+use App\Models\OrderActivity;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin OrderActivity
+ */
 class OrderActivityResource extends JsonResource
 {
     /**
@@ -17,7 +21,7 @@ class OrderActivityResource extends JsonResource
             'order_id' => $this->order_id,
             'actor_id' => $this->actor_id,
             'actor_role' => $this->actor_role?->value,
-            'event' => $this->event?->value,
+            'event' => $this->event->value,
             'title' => $this->title,
             'description' => $this->description,
             'from_status' => $this->from_status?->nameValue(),

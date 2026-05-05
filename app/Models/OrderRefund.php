@@ -22,16 +22,25 @@ class OrderRefund extends Model
 {
     use HasUlids;
 
+    /**
+     * @return BelongsTo<Order, $this>
+     */
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function requestedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'requested_by_user_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function processedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'processed_by_user_id');

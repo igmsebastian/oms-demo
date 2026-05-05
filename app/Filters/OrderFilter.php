@@ -32,13 +32,7 @@ class OrderFilter extends QueryFilter
     public function statuses(array|string|int $value): Builder
     {
         $statuses = collect(Arr::wrap($value))
-            ->map(function (mixed $item): ?OrderStatus {
-                if (! is_string($item) && ! is_int($item)) {
-                    return null;
-                }
-
-                return $this->resolveStatus($item);
-            })
+            ->map(fn (string|int $item): ?OrderStatus => $this->resolveStatus($item))
             ->filter()
             ->map(fn (OrderStatus $status): int => $status->value)
             ->unique()

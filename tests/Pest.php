@@ -20,11 +20,10 @@ use Tests\TestCase;
 |
 */
 
-pest()->extend(TestCase::class)
-    ->use(RefreshDatabase::class)
+uses(TestCase::class, RefreshDatabase::class)
     ->in('Feature');
 
-pest()->extend(TestCase::class)
+uses(TestCase::class)
     ->in('Unit');
 
 /*

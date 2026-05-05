@@ -51,7 +51,7 @@ class ProductService
 
         return $this->cache->restorePaginator(
             $payload,
-            $this->products->findManyForListing($payload['ids'] ?? []),
+            $this->products->findManyForListing($payload['ids']),
         );
     }
 

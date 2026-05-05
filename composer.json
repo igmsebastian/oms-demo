@@ -47,6 +47,10 @@
     },
     "scripts": {
         "analyse": "vendor/bin/phpstan analyse",
+        "check": [
+            "@analyse",
+            "@test"
+        ],
         "setup": [
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",

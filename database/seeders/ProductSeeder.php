@@ -88,9 +88,11 @@ class ProductSeeder extends Seeder
     }
 
     /**
-     * @param  class-string<Model>  $model
+     * @template TModel of Model
+     *
+     * @param  class-string<TModel>  $model
      * @param  array<int, array<string, mixed>>  $records
-     * @return array<string, Model>
+     * @return array<string, TModel>
      */
     protected function seedTaxonomy(string $model, array $records): array
     {

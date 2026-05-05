@@ -1,6 +1,8 @@
 includes:
     - vendor/larastan/larastan/extension.neon
     - vendor/nesbot/carbon/extension.neon
+    - vendor/pestphp/pest/extension.neon
+    - vendor/pestphp/pest/phpstan-pest-extension.neon
 
 parameters:
     paths:
@@ -10,3 +12,6 @@ parameters:
         - tests
 
     level: 5
+    parseModelCastsMethod: true
+    stubFiles:
+        - phpstan-pest.stub

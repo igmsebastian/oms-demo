@@ -5,9 +5,13 @@ namespace App\Http\Resources;
 use App\Enums\OrderStatus;
 use App\Enums\RefundStatus;
 use App\Enums\RefundStockDisposition;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin Order
+ */
 class OrderResource extends JsonResource
 {
     /**
@@ -21,9 +25,9 @@ class OrderResource extends JsonResource
             'user_address_id' => $this->user_address_id,
             'order_number' => $this->order_number,
             'status' => [
-                'id' => $this->status?->value,
-                'name' => $this->status?->nameValue(),
-                'label' => $this->status?->label(),
+                'id' => $this->status->value,
+                'name' => $this->status->nameValue(),
+                'label' => $this->status->label(),
             ],
             'total_amount' => $this->total_amount,
             'shipping_address_line_1' => $this->shipping_address_line_1,
@@ -51,8 +55,8 @@ class OrderResource extends JsonResource
             'refunds' => $this->whenLoaded('refunds', fn (): array => $this->refunds->map(fn ($refund): array => [
                 'id' => $refund->id,
                 'status' => [
-                    'name' => $refund->status?->value,
-                    'label' => str($refund->status?->value)->replace('_', ' ')->headline()->toString(),
+                    'name' => $refund->status->value,
+                    'label' => str($refund->status->value)->replace('_', ' ')->headline()->toString(),
                 ],
                 'amount' => $refund->amount,
                 'reason' => $refund->reason,
@@ -166,7 +170,7 @@ class OrderResource extends JsonResource
             return [];
         }
 
-        $allowed = config("order_status_transitions.allowed.{$this->status?->value}", []);
+        $allowed = config("order_status_transitions.allowed.{$this->status->value}", []);
 
         return collect($allowed)
             ->map(fn (int $status): OrderStatus => OrderStatus::from($status))

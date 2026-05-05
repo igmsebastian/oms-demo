@@ -523,6 +523,7 @@ class DemoOrderSeeder extends Seeder
         $address = $this->addressFor($customer);
         $createdAt = $definition['created_at']->toImmutable();
         $definition['created_at'] = $createdAt;
+        /** @var Collection<int, array<string, mixed>> $items */
         $items = collect($definition['items'])->map(function (array $item) use ($products): array {
             $product = $products->get($item['sku']);
             $quantity = (int) $item['quantity'];
@@ -533,7 +534,7 @@ class DemoOrderSeeder extends Seeder
                 'quantity' => $quantity,
                 'line_total' => round((float) $product->price * $quantity, 2),
             ];
-        });
+        })->values();
         $lastActivityAt = $this->lastActivityAt($definition);
         $order = Order::create([
             'user_id' => $customer->id,
@@ -1183,7 +1184,13 @@ class DemoOrderSeeder extends Seeder
 
     protected function lastActivityAt(array $definition): mixed
     {
-        return match ($definition['status']) {
+        $status = $definition['status'];
+
+        if (! $status instanceof OrderStatus) {
+            return $definition['created_at'];
+        }
+
+        return match ($status) {
             OrderStatus::Pending => $definition['created_at']->addMinutes(20),
             OrderStatus::Confirmed => $definition['created_at']->addHours(1)->addMinutes(10),
             OrderStatus::Processing => $definition['created_at']->addHours(4),

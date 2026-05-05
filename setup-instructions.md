@@ -188,7 +188,7 @@ Run these checks:
 ```bash
 php artisan route:list --except-vendor
 npm run build
-php artisan test --compact
+composer check
 ```
 
 For faster checks while developing:
@@ -197,6 +197,26 @@ For faster checks while developing:
 vendor/bin/pint --dirty --format agent
 npm run lint
 ```
+
+## 9. Before Pushing Code
+
+Run the full backend quality gate before pushing:
+
+```bash
+vendor/bin/pint --dirty --format agent
+composer check
+composer test:coverage
+```
+
+Expected result:
+
+| Command                  | Required Result                                                    |
+| ------------------------ | ------------------------------------------------------------------ |
+| `vendor/bin/pint --dirty --format agent` | Changed PHP files are formatted. If it fixes files, rerun the checks. |
+| `composer check`         | PHPStan/Larastan reports `errors: 0`, then Pint and Pest pass.      |
+| `composer test:coverage` | Pest coverage report runs successfully.                            |
+
+`composer check` runs `composer analyse` followed by `composer test`. Treat the suite as ready to push only when PHPStan is clean and Pest reports every test passed, for example `tests: 163, passed: 163`. Coverage output does not need to be 100% code coverage unless the project adds a separate coverage threshold.
 
 ## Common Tasks
 
@@ -209,6 +229,10 @@ npm run lint
 | Process queue jobs             | `php artisan queue:work`                        |
 | Run scheduled tasks            | `php artisan schedule:run`                      |
 | Build assets                   | `npm run build`                                 |
+| Run pre-push backend check     | `composer check`                                |
+| Run PHPStan                    | `composer analyse`                              |
+| Run Pint and Pest              | `composer test`                                 |
+| Run coverage                   | `composer test:coverage`                        |
 
 ## Troubleshooting
 

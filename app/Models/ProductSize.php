@@ -15,6 +15,9 @@ class ProductSize extends Model
     /** @use HasFactory<ProductSizeFactory> */
     use HasFactory, HasUlids;
 
+    /**
+     * @return HasMany<Product, $this>
+     */
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);

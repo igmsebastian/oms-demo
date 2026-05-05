@@ -44,7 +44,7 @@ class OrdersExport implements FromArray, ShouldAutoSize, WithColumnFormatting, W
                 $order->order_number,
                 $order->user?->name,
                 $order->user?->email,
-                $order->status?->label(),
+                $order->status->label(),
                 (float) $order->total_amount,
                 $order->created_at?->toDateTimeString(),
             ])->all(),

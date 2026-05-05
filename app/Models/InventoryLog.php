@@ -24,21 +24,33 @@ class InventoryLog extends Model
 {
     use HasUlids;
 
+    /**
+     * @return BelongsTo<Product, $this>
+     */
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
     }
 
+    /**
+     * @return BelongsTo<Order, $this>
+     */
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
     }
 
+    /**
+     * @return BelongsTo<OrderItem, $this>
+     */
     public function orderItem(): BelongsTo
     {
         return $this->belongsTo(OrderItem::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function changedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'changed_by_user_id');

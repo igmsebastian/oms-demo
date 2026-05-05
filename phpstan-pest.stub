@@ -1,0 +1,126 @@
+<?php
+
+namespace Pest\PendingCalls {
+    final class AfterEachCall
+    {
+    }
+
+    final class BeforeEachCall
+    {
+    }
+
+    final class TestCall
+    {
+    }
+}
+
+namespace Pest\Support {
+    final class HigherOrderTapProxy
+    {
+    }
+}
+
+namespace Tests {
+    abstract class TestCase
+    {
+        public function actingAs(mixed ...$arguments): self
+        {
+        }
+
+        public function withSession(mixed ...$arguments): self
+        {
+        }
+
+        public function from(mixed ...$arguments): self
+        {
+        }
+
+        public function seed(mixed ...$arguments): mixed
+        {
+        }
+
+        public function artisan(mixed ...$arguments): mixed
+        {
+        }
+
+        public function get(mixed ...$arguments): mixed
+        {
+        }
+
+        public function post(mixed ...$arguments): mixed
+        {
+        }
+
+        public function put(mixed ...$arguments): mixed
+        {
+        }
+
+        public function patch(mixed ...$arguments): mixed
+        {
+        }
+
+        public function delete(mixed ...$arguments): mixed
+        {
+        }
+
+        public function getJson(mixed ...$arguments): mixed
+        {
+        }
+
+        public function postJson(mixed ...$arguments): mixed
+        {
+        }
+
+        public function patchJson(mixed ...$arguments): mixed
+        {
+        }
+
+        public function deleteJson(mixed ...$arguments): mixed
+        {
+        }
+
+        public function assertAuthenticated(mixed ...$arguments): mixed
+        {
+        }
+
+        public function assertGuest(mixed ...$arguments): mixed
+        {
+        }
+
+        public function skipUnlessFortifyHas(mixed ...$arguments): mixed
+        {
+        }
+    }
+}
+
+namespace {
+    /**
+     * @param-closure-this \Tests\TestCase $closure
+     *
+     * @return ($description is string ? \Pest\PendingCalls\TestCall : \Pest\Support\HigherOrderTapProxy|\Pest\PendingCalls\TestCall)
+     */
+    function test(?string $description = null, ?\Closure $closure = null)
+    {
+    }
+
+    /**
+     * @param-closure-this \Tests\TestCase $closure
+     */
+    function it(string $description, ?\Closure $closure = null): \Pest\PendingCalls\TestCall
+    {
+    }
+
+    /**
+     * @param-closure-this \Tests\TestCase $closure
+     */
+    function beforeEach(?\Closure $closure = null): \Pest\PendingCalls\BeforeEachCall
+    {
+    }
+
+    /**
+     * @param-closure-this \Tests\TestCase $closure
+     */
+    function afterEach(?\Closure $closure = null): \Pest\PendingCalls\AfterEachCall
+    {
+    }
+}

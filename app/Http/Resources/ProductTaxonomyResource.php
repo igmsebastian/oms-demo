@@ -2,9 +2,23 @@
 
 namespace App\Http\Resources;
 
+use App\Models\ProductBrand;
+use App\Models\ProductCategory;
+use App\Models\ProductColor;
+use App\Models\ProductSize;
+use App\Models\ProductTag;
+use App\Models\ProductUnit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin ProductBrand
+ * @mixin ProductCategory
+ * @mixin ProductColor
+ * @mixin ProductSize
+ * @mixin ProductTag
+ * @mixin ProductUnit
+ */
 class ProductTaxonomyResource extends JsonResource
 {
     /**

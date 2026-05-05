@@ -29,41 +29,65 @@ class Product extends Model
 {
     use HasUlids, SoftDeletes;
 
+    /**
+     * @return BelongsTo<ProductCategory, $this>
+     */
     public function category(): BelongsTo
     {
         return $this->belongsTo(ProductCategory::class, 'product_category_id');
     }
 
+    /**
+     * @return BelongsTo<ProductBrand, $this>
+     */
     public function brand(): BelongsTo
     {
         return $this->belongsTo(ProductBrand::class, 'product_brand_id');
     }
 
+    /**
+     * @return BelongsTo<ProductUnit, $this>
+     */
     public function unit(): BelongsTo
     {
         return $this->belongsTo(ProductUnit::class, 'product_unit_id');
     }
 
+    /**
+     * @return BelongsTo<ProductSize, $this>
+     */
     public function size(): BelongsTo
     {
         return $this->belongsTo(ProductSize::class, 'product_size_id');
     }
 
+    /**
+     * @return BelongsTo<ProductColor, $this>
+     */
     public function color(): BelongsTo
     {
         return $this->belongsTo(ProductColor::class, 'product_color_id');
     }
 
+    /**
+     * @return BelongsToMany<ProductTag, $this>
+     */
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(ProductTag::class, 'product_tag', 'product_id', 'product_tag_id')->withTimestamps();
     }
 
+    /**
+     * @return HasMany<OrderItem, $this>
+     */
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
     }
 
+    /**
+     * @return HasMany<InventoryLog, $this>
+     */
     public function inventoryLogs(): HasMany
     {
         return $this->hasMany(InventoryLog::class);

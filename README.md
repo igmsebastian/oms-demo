@@ -152,10 +152,26 @@ That starts Laravel, the queue listener, and Vite together.
 | `php artisan queue:work`                 | Process queued mail and jobs.          |
 | `php artisan schedule:run`               | Run scheduled cleanup tasks.           |
 | `php artisan route:list --except-vendor` | Inspect app routes.                    |
+| `composer check`                         | Run PHPStan, Pint check, and Pest.      |
+| `composer analyse`                       | Run PHPStan/Larastan static analysis.  |
+| `composer test`                          | Run Pint check and the full Pest suite. |
+| `composer test:coverage`                 | Run Pest with coverage reporting.      |
 | `php artisan test --compact`             | Run the test suite.                    |
 | `vendor/bin/pint --dirty --format agent` | Format changed PHP files.              |
 | `npm run lint`                           | Run and fix frontend lint issues.      |
 | `npm run build`                          | Build frontend assets.                 |
+
+## Before Pushing Code
+
+Make sure PHPStan is clean and every Pest test passes before pushing:
+
+```bash
+vendor/bin/pint --dirty --format agent
+composer check
+composer test:coverage
+```
+
+`composer check` runs `composer analyse` followed by `composer test`. PHPStan must finish with `errors: 0`, and Pest must report every test passed, for example `tests: 163, passed: 163`. `composer test:coverage` confirms coverage reporting still works; it does not need to be 100% coverage unless a separate coverage target is introduced.
 
 ## Architecture
 
