@@ -1,77 +1,202 @@
-# Order Management System Backend
+# Basty Order Management
 
-## Architecture
+Basty Order Management is a Laravel 13, Inertia v3, React 19 order management system for sneaker inventory, order workflows, reports, refunds, cancellations, and product reference data.
 
-This Laravel 13 application uses a Controller -> Service -> Repository shape for the OMS backend.
+For the complete setup walkthrough, read [setup-instructions.md](setup-instructions.md).
 
-- Controllers handle HTTP, authorization, validation requests, redirects, and JSON resources.
-- Services hold business rules, transactions, status changes, inventory mutations, cache invalidation, and side effects.
-- Repositories hold Eloquent query construction, filtering, pagination, and report aggregates.
-- API and Inertia controllers call the same services.
-- ULIDs are used for application model primary keys. `order_statuses.id` remains an integer reference key.
+## Start Here
 
-## Status Flow
+Use this quick path when setting up the project for the first time:
 
-Order statuses are defined in `App\Enums\OrderStatus` and synced into `order_statuses` by `OrderStatusSeeder`.
-
-Normal flow:
-
-```text
-pending -> confirmed -> processing -> packed -> shipped -> delivered -> completed
+```bash
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
 ```
 
-Cancellation flow:
+Then configure `.env`, create the database, and seed sample data:
 
-```text
-pending/confirmed/processing -> cancellation_requested -> cancelled
-confirmed/processing -> partially_cancelled -> processing
+```bash
+php artisan migrate:fresh --seed
+npm run build
 ```
 
-Refund flow:
-
-```text
-cancelled/partially_cancelled -> refund_pending -> refunded
-```
-
-Allowed transitions are centralized in `config/order_status_transitions.php` and applied by `OrderStatusTransitionService`.
-
-## Cancellation And Refunds
-
-- Users can request cancellation for their own orders.
-- Admins can approve full or partial cancellations.
-- Confirmed inventory is restored when cancellation quantities are applied.
-- `order_items.cancelled_quantity` prevents restoring the same quantity twice.
-- Refunds are tracked in `order_refunds` and can move from pending to processing to completed.
-
-## Queue Setup
-
-Order and inventory emails are queued mailables. Dispatching uses after-commit behavior so emails and low-stock jobs are not queued until the surrounding transaction succeeds.
-
-For local development:
+Start the queue worker when testing emails, low-stock alerts, and after-commit jobs:
 
 ```bash
 php artisan queue:work
 ```
 
-The email map is in `config/order_emails.php`.
+## Environment Configuration
 
-## Cache Behavior
+Copy `.env.example` to `.env`, then review these values:
 
-`ReportService` caches dashboard/reporting data with these keys:
+| Key                | Local Default            | Notes                                                                |
+| ------------------ | ------------------------ | -------------------------------------------------------------------- |
+| `APP_NAME`         | `Basty Order Management` | Used in page titles, mail, logs, and UI metadata.                    |
+| `APP_URL`          | `http://localhost`       | Use your local URL, such as `https://oms-demo.test` when using Herd. |
+| `DB_CONNECTION`    | `sqlite`                 | SQLite is fastest for local setup. MySQL works too.                  |
+| `CACHE_STORE`      | `database`               | Use `redis` on servers that have Redis configured.                   |
+| `QUEUE_CONNECTION` | `database`               | Required for queued order emails and low-stock alerts.               |
+| `MAIL_MAILER`      | `log`                    | Keeps local email safe by writing to logs.                           |
+| `VITE_APP_NAME`    | `${APP_NAME}`            | Frontend app title fallback.                                         |
 
-- `reports.orders.summary`
-- `reports.revenue.summary`
-- `reports.inventory.status`
-- `reports.inventory.low_stock_count`
-
-The cache is invalidated after product stock changes, product updates/deletes, order confirmation, cancellation, and refund completion.
-
-## Test Commands
+After changing `.env`, clear cached config if needed:
 
 ```bash
-vendor/bin/pint --dirty --format agent
-php artisan test --compact tests/Feature/ProductManagementTest.php
-php artisan test --compact tests/Feature/OrderLifecycleTest.php
-php artisan test --compact tests/Feature/ReportCacheTest.php
-php artisan test --compact
+php artisan config:clear
 ```
+
+## Database Setup
+
+### SQLite
+
+SQLite is the default in `.env.example`.
+
+Create the database file:
+
+```bash
+touch database/database.sqlite
+```
+
+On Windows PowerShell:
+
+```powershell
+New-Item -ItemType File -Force database/database.sqlite
+```
+
+Then run migrations:
+
+```bash
+php artisan migrate
+```
+
+### MySQL
+
+If you prefer MySQL, update `.env`:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=oms_demo
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+Create the database in MySQL, then run:
+
+```bash
+php artisan migrate
+```
+
+## Sample Data
+
+Seeders create:
+
+| Seeder               | What It Adds                                                                            |
+| -------------------- | --------------------------------------------------------------------------------------- |
+| `OrderStatusSeeder`  | Integer-backed OMS statuses.                                                            |
+| `AdminUserSeeder`    | Admin users, including `basty@mydemo.com`.                                              |
+| `CustomerUserSeeder` | Customer accounts and shipping addresses.                                               |
+| `ProductSeeder`      | Sneaker products, brands, categories, sizes, colors, tags, and stock states.            |
+| `DemoOrderSeeder`    | Historical and recent orders with logs, inventory movement, cancellations, and refunds. |
+
+Reset and seed everything:
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+Seed only order statuses:
+
+```bash
+php artisan db:seed --class=OrderStatusSeeder
+```
+
+Demo admin login:
+
+```text
+Email: basty@mydemo.com
+Password: password
+```
+
+## Running The App
+
+If you use Laravel Herd, open your configured local site, for example:
+
+```text
+https://oms-demo.test
+```
+
+Run Vite for frontend changes:
+
+```bash
+npm run dev
+```
+
+If you are not using Herd or Valet, use the project dev script:
+
+```bash
+composer run dev
+```
+
+That starts Laravel, the queue listener, and Vite together.
+
+## Useful Commands
+
+| Command                                  | Purpose                                |
+| ---------------------------------------- | -------------------------------------- |
+| `php artisan migrate:fresh --seed`       | Rebuild database with sample OMS data. |
+| `php artisan queue:work`                 | Process queued mail and jobs.          |
+| `php artisan schedule:run`               | Run scheduled cleanup tasks.           |
+| `php artisan route:list --except-vendor` | Inspect app routes.                    |
+| `php artisan test --compact`             | Run the test suite.                    |
+| `vendor/bin/pint --dirty --format agent` | Format changed PHP files.              |
+| `npm run lint`                           | Run and fix frontend lint issues.      |
+| `npm run build`                          | Build frontend assets.                 |
+
+## Architecture
+
+The backend follows:
+
+```text
+Controller -> Service -> Repository
+```
+
+| Layer         | Responsibility                                                                                     |
+| ------------- | -------------------------------------------------------------------------------------------------- |
+| Controllers   | HTTP, Inertia/API response orchestration, authorization, redirects.                                |
+| Form Requests | Validation and request authorization.                                                              |
+| Services      | Business rules, transactions, status changes, inventory changes, cache invalidation, side effects. |
+| Repositories  | Eloquent queries, filters, pagination, report aggregates.                                          |
+| Models/Enums  | Relationships, casts, accessors, statuses, constants.                                              |
+
+The frontend follows Feature-Sliced Design:
+
+```text
+shared -> entities -> features -> widgets -> pages
+```
+
+## More Documentation
+
+| File                                           | Purpose                                                       |
+| ---------------------------------------------- | ------------------------------------------------------------- |
+| [setup-instructions.md](setup-instructions.md) | Full local setup guide.                                       |
+| [docs/order-process.md](docs/order-process.md) | Order status, cancellation, refund, and stock movement rules. |
+| [docs/coreBackend.md](docs/coreBackend.md)     | Backend architecture and developer guide.                     |
+| [docs/coreFrontend.md](docs/coreFrontend.md)   | Frontend architecture and UI guide.                           |
+| [docs/deployment.md](docs/deployment.md)       | Deployment checklist and Forge notes.                         |
+
+## Troubleshooting
+
+| Problem                       | Fix                                                     |
+| ----------------------------- | ------------------------------------------------------- |
+| App key missing               | Run `php artisan key:generate`.                         |
+| SQLite database missing       | Create `database/database.sqlite`, then run migrations. |
+| Tables missing                | Run `php artisan migrate:fresh --seed`.                 |
+| Frontend change not visible   | Run `npm run dev` or `npm run build`.                   |
+| Queued email/job not running  | Start `php artisan queue:work`.                         |
+| Config value looks stale      | Run `php artisan config:clear`.                         |
+| Report/chart data looks stale | Run `php artisan cache:clear`, then reseed if needed.   |
