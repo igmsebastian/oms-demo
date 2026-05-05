@@ -1,0 +1,18 @@
+{
+    "agents": [
+        "codex"
+    ],
+    "cloud": false,
+    "packages": [
+        "spatie/laravel-medialibrary"
+    ],
+    "skills": [
+        "fortify-development",
+        "laravel-best-practices",
+        "wayfinder-development",
+        "pest-testing",
+        "inertia-react-development",
+        "tailwindcss-development",
+        "medialibrary-development"
+    ]
+}
