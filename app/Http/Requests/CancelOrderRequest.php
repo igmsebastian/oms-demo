@@ -26,6 +26,7 @@ class CancelOrderRequest extends FormRequest
     {
         return [
             'reason' => ['required', 'string', 'max:5000'],
+            'note' => ['nullable', 'string', 'max:5000'],
         ];
     }
 
@@ -39,7 +40,7 @@ class CancelOrderRequest extends FormRequest
                 $order = $this->route('order');
 
                 if ($order instanceof Order && $order->status === OrderStatus::Cancelled) {
-                    $validator->errors()->add('status', 'This order is already cancelled.');
+                    $validator->errors()->add('status', 'This order is already cancelled. No action is needed.');
                 }
             },
         ];

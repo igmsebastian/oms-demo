@@ -23,6 +23,7 @@ class UpdateOrderStatusRequest extends FormRequest
     {
         return [
             'status' => ['required', Rule::enum(OrderStatus::class)],
+            'note' => ['nullable', 'string', 'max:5000'],
         ];
     }
 }

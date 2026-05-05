@@ -1,15 +1,45 @@
 // Components
-import { Form, Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import { useForm } from '@tanstack/react-form';
 import { LoaderCircle } from 'lucide-react';
-import InputError from '@/components/input-error';
+import { useState } from 'react';
+import { z } from 'zod';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { login } from '@/routes';
 import { email } from '@/routes/password';
+import type { ServerFormErrors } from '@/shared/forms/errors';
+import { TanStackField } from '@/shared/forms/TanStackField';
+
+const forgotPasswordSchema = z.object({
+    email: z.string().email('Enter a valid email address.'),
+});
 
 export default function ForgotPassword({ status }: { status?: string }) {
+    const [processing, setProcessing] = useState(false);
+    const [serverErrors, setServerErrors] = useState<ServerFormErrors>({});
+    const form = useForm({
+        defaultValues: {
+            email: '',
+        },
+        validators: {
+            onSubmit: forgotPasswordSchema,
+        },
+        onSubmit: ({ value }) => {
+            setProcessing(true);
+            setServerErrors({});
+            const request = email.post();
+
+            router.visit(request.url, {
+                method: request.method,
+                data: value,
+                onError: setServerErrors,
+                onFinish: () => setProcessing(false),
+            });
+        },
+    });
+
     return (
         <>
             <Head title="Forgot password" />
@@ -21,38 +51,61 @@ export default function ForgotPassword({ status }: { status?: string }) {
             )}
 
             <div className="space-y-6">
-                <Form {...email.form()}>
-                    {({ processing, errors }) => (
-                        <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    name="email"
-                                    autoComplete="off"
-                                    autoFocus
-                                    placeholder="email@example.com"
-                                />
+                <form
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        void form.handleSubmit();
+                    }}
+                >
+                    <form.Field
+                        name="email"
+                        children={(field) => (
+                            <TanStackField
+                                field={field}
+                                label="Email address"
+                                serverError={serverErrors.email}
+                                required
+                            >
+                                {({
+                                    id,
+                                    name,
+                                    value,
+                                    isInvalid,
+                                    onBlur,
+                                    onChange,
+                                }) => (
+                                    <Input
+                                        id={id}
+                                        type="email"
+                                        name={name}
+                                        autoComplete="off"
+                                        autoFocus
+                                        placeholder="email@mydemo.com"
+                                        value={value}
+                                        onBlur={onBlur}
+                                        onChange={(event) =>
+                                            onChange(event.target.value)
+                                        }
+                                        aria-invalid={isInvalid}
+                                    />
+                                )}
+                            </TanStackField>
+                        )}
+                    />
 
-                                <InputError message={errors.email} />
-                            </div>
-
-                            <div className="my-6 flex items-center justify-start">
-                                <Button
-                                    className="w-full"
-                                    disabled={processing}
-                                    data-test="email-password-reset-link-button"
-                                >
-                                    {processing && (
-                                        <LoaderCircle className="h-4 w-4 animate-spin" />
-                                    )}
-                                    Email password reset link
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
+                    <div className="my-6 flex items-center justify-start">
+                        <Button
+                            className="w-full"
+                            disabled={processing}
+                            data-test="email-password-reset-link-button"
+                        >
+                            {processing && (
+                                <LoaderCircle className="h-4 w-4 animate-spin" />
+                            )}
+                            Email password reset link
+                        </Button>
+                    </div>
+                </form>
 
                 <div className="space-x-1 text-center text-sm text-muted-foreground">
                     <span>Or, return to</span>
@@ -66,4 +119,5 @@ export default function ForgotPassword({ status }: { status?: string }) {
 ForgotPassword.layout = {
     title: 'Forgot password',
     description: 'Enter your email to receive a password reset link',
+    background: 'stars',
 };

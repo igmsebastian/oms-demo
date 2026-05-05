@@ -2,10 +2,10 @@
 
 namespace App\Filters;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 abstract class QueryFilter
 {
@@ -28,7 +28,7 @@ abstract class QueryFilter
         return $this->builder;
     }
 
-    public function user(): Authenticatable | null
+    public function user(): ?Authenticatable
     {
         return $this->request->user();
     }
@@ -36,12 +36,14 @@ abstract class QueryFilter
     public function filters(): array
     {
         $filters = $this->request->input('filters', []);
+
         return is_array($filters) ? $filters : [];
     }
 
     public function sortParameters(): array
     {
         $sortParameters = $this->request->input('sorts', []);
+
         return is_array($sortParameters) ? $sortParameters : [];
     }
 
@@ -58,16 +60,42 @@ abstract class QueryFilter
             return $default;
         }
 
-        if (!is_numeric($perPage)) {
+        if (! is_numeric($perPage)) {
             return $default;
         }
 
         return (int) $perPage;
     }
 
+    public function page(): int
+    {
+        $page = $this->request->query('page', 1);
+
+        if (! is_numeric($page)) {
+            return 1;
+        }
+
+        return max(1, (int) $page);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function cacheFingerprint(?int $defaultPerPage = null): array
+    {
+        return [
+            'filters' => $this->filters(),
+            'sorts' => $this->sortParameters(),
+            'page' => $this->page(),
+            'per_page' => $this->perPage($defaultPerPage),
+            'simple' => $this->isSimple(),
+        ];
+    }
+
     public function isUnpaginated(): bool
     {
         $perPage = $this->perPage();
+
         return $perPage !== null && $perPage === -1;
     }
 
@@ -88,16 +116,16 @@ abstract class QueryFilter
     {
         foreach ($this->sortParameters() as $columnName => $direction) {
             $this->sort([
-                'by'    => $columnName,
+                'by' => $columnName,
                 'order' => $direction,
             ]);
         }
     }
 
-    public function sort(array $sortOptions  = []): Builder
+    public function sort(array $sortOptions = []): Builder
     {
         $columnName = $sortOptions['by'] ?? null;
-        $direction  = $sortOptions['order'] ?? 'desc';
+        $direction = $sortOptions['order'] ?? 'desc';
 
         if ($columnName === null) {
             return $this->builder;
@@ -125,7 +153,7 @@ abstract class QueryFilter
     protected function isEmptyFilterValue(mixed $value): bool
     {
         if (is_array($value)) {
-            return count(array_filter($value, static fn($item) => $item !== null && $item !== '')) === 0;
+            return count(array_filter($value, static fn ($item) => $item !== null && $item !== '')) === 0;
         }
 
         return $value === null || $value === '';

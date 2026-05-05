@@ -1,45 +1,103 @@
-import { Form, Head } from '@inertiajs/react';
-import InputError from '@/components/input-error';
+import { Head, router } from '@inertiajs/react';
+import { useForm } from '@tanstack/react-form';
+import { useState } from 'react';
+import { z } from 'zod';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { store } from '@/routes/password/confirm';
+import type { ServerFormErrors } from '@/shared/forms/errors';
+import { TanStackField } from '@/shared/forms/TanStackField';
+
+const confirmPasswordSchema = z.object({
+    password: z.string().min(1, 'Enter your password.'),
+});
 
 export default function ConfirmPassword() {
+    const [processing, setProcessing] = useState(false);
+    const [serverErrors, setServerErrors] = useState<ServerFormErrors>({});
+    const form = useForm({
+        defaultValues: {
+            password: '',
+        },
+        validators: {
+            onSubmit: confirmPasswordSchema,
+        },
+        onSubmit: ({ value }) => {
+            setProcessing(true);
+            setServerErrors({});
+            const request = store.post();
+
+            router.visit(request.url, {
+                method: request.method,
+                data: value,
+                onError: (backendErrors) => {
+                    setServerErrors(backendErrors);
+                    form.setFieldValue('password', '');
+                },
+                onFinish: () => setProcessing(false),
+            });
+        },
+    });
+
     return (
         <>
             <Head title="Confirm password" />
 
-            <Form {...store.form()} resetOnSuccess={['password']}>
-                {({ processing, errors }) => (
-                    <div className="space-y-6">
-                        <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
-                            <PasswordInput
-                                id="password"
-                                name="password"
-                                placeholder="Password"
-                                autoComplete="current-password"
-                                autoFocus
-                            />
-
-                            <InputError message={errors.password} />
-                        </div>
-
-                        <div className="flex items-center">
-                            <Button
-                                className="w-full"
-                                disabled={processing}
-                                data-test="confirm-password-button"
+            <form
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    void form.handleSubmit();
+                }}
+            >
+                <div className="space-y-6">
+                    <form.Field
+                        name="password"
+                        children={(field) => (
+                            <TanStackField
+                                field={field}
+                                label="Password"
+                                serverError={serverErrors.password}
+                                required
                             >
-                                {processing && <Spinner />}
-                                Confirm password
-                            </Button>
-                        </div>
+                                {({
+                                    id,
+                                    name,
+                                    value,
+                                    isInvalid,
+                                    onBlur,
+                                    onChange,
+                                }) => (
+                                    <PasswordInput
+                                        id={id}
+                                        name={name}
+                                        placeholder="Password"
+                                        autoComplete="current-password"
+                                        autoFocus
+                                        value={value}
+                                        onBlur={onBlur}
+                                        onChange={(event) =>
+                                            onChange(event.target.value)
+                                        }
+                                        aria-invalid={isInvalid}
+                                    />
+                                )}
+                            </TanStackField>
+                        )}
+                    />
+
+                    <div className="flex items-center">
+                        <Button
+                            className="w-full"
+                            disabled={processing}
+                            data-test="confirm-password-button"
+                        >
+                            {processing && <Spinner />}
+                            Confirm password
+                        </Button>
                     </div>
-                )}
-            </Form>
+                </div>
+            </form>
         </>
     );
 }

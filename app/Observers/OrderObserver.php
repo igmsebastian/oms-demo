@@ -24,6 +24,6 @@ class OrderObserver
             }
         }
 
-        throw new RuntimeException('Unable to generate a unique order number.');
+        throw new RuntimeException('We could not create an order number. Please try again.');
     }
 }

@@ -25,5 +25,11 @@ interface ProductRepositoryInterface
      * @param  array<int, string>  $ids
      * @return Collection<int, Product>
      */
+    public function findManyForListing(array $ids): Collection;
+
+    /**
+     * @param  array<int, string>  $ids
+     * @return Collection<int, Product>
+     */
     public function findManyForUpdate(array $ids): Collection;
 }

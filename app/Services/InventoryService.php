@@ -19,6 +19,7 @@ class InventoryService
         protected OrderActivityService $activities,
         protected OrderNotificationService $notifications,
         protected ReportService $reports,
+        protected OmsCacheService $cache,
     ) {}
 
     public function deductStock(Product $product, int $quantity, array $context): Product
@@ -29,7 +30,7 @@ class InventoryService
 
             if ($product->stock_quantity < $quantity) {
                 throw ValidationException::withMessages([
-                    'stock' => "Insufficient stock for {$product->name}.",
+                    'stock' => "Not enough stock is available for {$product->name}.",
                 ]);
             }
 
@@ -38,7 +39,7 @@ class InventoryService
             $product->save();
 
             $this->recordInventoryChange($product, InventoryChangeType::Deduction, -$quantity, $stockBefore, $context);
-            $this->reports->invalidate();
+            $this->invalidateInventoryReads();
 
             if ($product->isLowStock()) {
                 $this->notifications->queueLowStockAlert($product);
@@ -59,7 +60,7 @@ class InventoryService
             $product->save();
 
             $this->recordInventoryChange($product, InventoryChangeType::Restore, $quantity, $stockBefore, $context);
-            $this->reports->invalidate();
+            $this->invalidateInventoryReads();
 
             return $product;
         });
@@ -74,7 +75,7 @@ class InventoryService
 
             if ($stockAfter < 0) {
                 throw ValidationException::withMessages([
-                    'stock_quantity' => 'Inventory adjustments cannot make stock negative.',
+                    'stock_quantity' => 'Stock cannot go below zero. Adjust the quantity and try again.',
                 ]);
             }
 
@@ -86,7 +87,7 @@ class InventoryService
                 'reason' => $reason,
             ]);
 
-            $this->reports->invalidate();
+            $this->invalidateInventoryReads();
 
             if ($product->isLowStock()) {
                 $this->notifications->queueLowStockAlert($product);
@@ -100,7 +101,7 @@ class InventoryService
     {
         if ($quantity < 1) {
             throw ValidationException::withMessages([
-                'quantity' => 'Quantity must be at least 1.',
+                'quantity' => 'Enter a quantity of at least 1.',
             ]);
         }
     }
@@ -143,5 +144,11 @@ class InventoryService
                     ],
                 ]);
         }
+    }
+
+    protected function invalidateInventoryReads(): void
+    {
+        $this->reports->invalidate();
+        $this->cache->invalidateProducts();
     }
 }

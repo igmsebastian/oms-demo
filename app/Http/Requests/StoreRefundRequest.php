@@ -24,6 +24,7 @@ class StoreRefundRequest extends FormRequest
         return [
             'amount' => ['required', 'numeric', 'gt:0'],
             'reason' => ['nullable', 'string', 'max:5000'],
+            'note' => ['nullable', 'string', 'max:5000'],
             'metadata' => ['nullable', 'array'],
         ];
     }
@@ -41,12 +42,12 @@ class StoreRefundRequest extends FormRequest
                     return;
                 }
 
-                if (! in_array($order->status, [OrderStatus::Cancelled, OrderStatus::PartiallyCancelled], true)) {
-                    $validator->errors()->add('status', 'Only cancelled or partially cancelled orders can be refunded.');
+                if (! in_array($order->status, [OrderStatus::Delivered, OrderStatus::Cancelled, OrderStatus::PartiallyCancelled], true)) {
+                    $validator->errors()->add('status', 'Refunds are only available for delivered, cancelled, or partially cancelled orders.');
                 }
 
                 if ((float) $this->input('amount') > (float) $order->total_amount) {
-                    $validator->errors()->add('amount', 'Refund amount cannot exceed the order total.');
+                    $validator->errors()->add('amount', 'Enter a refund amount that is not higher than the order total.');
                 }
             },
         ];

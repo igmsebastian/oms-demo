@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\OrderStatus;
+use App\Enums\RefundStockDisposition;
 use App\Filters\OrderFilter;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CancelOrderRequest;
+use App\Http\Requests\CompleteRefundRequest;
 use App\Http\Requests\ConfirmOrderRequest;
 use App\Http\Requests\PartialCancelOrderItemRequest;
 use App\Http\Requests\StoreRefundRequest;
@@ -29,8 +31,17 @@ class OrderController extends Controller
     {
         Gate::authorize('viewAny', Order::class);
 
-        return Inertia::render('admin/orders/index', [
+        return Inertia::render('Orders/index', [
             'orders' => OrderResource::collection($orders->getPaginatedOrders($filter)),
+            'filters' => request()->query('filters', []),
+            'sorts' => request()->query('sorts', ['created_at' => 'desc']),
+            'status_counts' => $orders->statusCounts(),
+            'status_options' => collect(OrderStatus::cases())->map(fn (OrderStatus $status): array => [
+                'id' => $status->value,
+                'name' => $status->nameValue(),
+                'label' => $status->label(),
+            ])->all(),
+            'is_admin' => true,
         ]);
     }
 
@@ -38,25 +49,51 @@ class OrderController extends Controller
     {
         Gate::authorize('view', $order);
 
-        return Inertia::render('admin/orders/show', [
-            'order' => new OrderResource($order->load(['user', 'items.product', 'activities.actor', 'refunds'])),
+        $order->load([
+            'user',
+            'items.product.category',
+            'items.product.brand',
+            'items.product.unit',
+            'items.product.size',
+            'items.product.color',
+            'items.product.tags',
+            'activities.actor',
+            'refunds',
+        ])->loadCount('activities');
+
+        return Inertia::render('OrderDetails/index', [
+            'order' => OrderResource::make($order)->resolve(),
         ]);
     }
 
     public function confirm(ConfirmOrderRequest $request, Order $order, OrderService $orders): RedirectResponse
     {
-        $orders->confirmOrder($order, $request->user());
+        $orders->confirmOrder($order, $request->user(), $request->validated('note'));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Order confirmed.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Order confirmed successfully.')]);
+
+        return to_route('admin.orders.show', $order);
+    }
+
+    public function fulfill(ConfirmOrderRequest $request, Order $order, OrderService $orders): RedirectResponse
+    {
+        $orders->fulfillOrder($order, $request->user(), $request->validated('note'));
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Fulfillment started successfully.')]);
 
         return to_route('admin.orders.show', $order);
     }
 
     public function updateStatus(UpdateOrderStatusRequest $request, Order $order, OrderService $orders): RedirectResponse
     {
-        $orders->updateStatus($order, OrderStatus::from((int) $request->validated('status')), $request->user());
+        $orders->updateStatus(
+            $order,
+            OrderStatus::from((int) $request->validated('status')),
+            $request->user(),
+            $request->validated('note'),
+        );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Order status updated.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Order status updated successfully.')]);
 
         return to_route('admin.orders.show', $order);
     }
@@ -67,7 +104,7 @@ class OrderController extends Controller
 
         $cancellations->cancelOrder($order, $request->user(), $request->validated('reason'));
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Order cancelled.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Order cancelled successfully.')]);
 
         return to_route('admin.orders.show', $order);
     }
@@ -81,7 +118,7 @@ class OrderController extends Controller
             $request->validated('reason'),
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Order item cancelled.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Order item cancelled successfully.')]);
 
         return to_route('admin.orders.show', $orderItem->order);
     }
@@ -90,7 +127,7 @@ class OrderController extends Controller
     {
         $refunds->createRefund($order, $request->user(), $request->validated());
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Refund created.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Refund request created successfully.')]);
 
         return to_route('admin.orders.show', $order);
     }
@@ -101,14 +138,21 @@ class OrderController extends Controller
 
         $refunds->markProcessing($refund, $request->user());
 
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Refund moved to processing.')]);
+
         return to_route('admin.orders.show', $refund->order);
     }
 
-    public function markRefundCompleted(Request $request, OrderRefund $refund, OrderRefundService $refunds): RedirectResponse
+    public function markRefundCompleted(CompleteRefundRequest $request, OrderRefund $refund, OrderRefundService $refunds): RedirectResponse
     {
-        Gate::authorize('refund', $refund->order);
+        $refunds->markCompleted(
+            $refund,
+            $request->user(),
+            RefundStockDisposition::from($request->validated('stock_disposition')),
+            $request->validated('note'),
+        );
 
-        $refunds->markCompleted($refund, $request->user());
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Refund completed successfully.')]);
 
         return to_route('admin.orders.show', $refund->order);
     }

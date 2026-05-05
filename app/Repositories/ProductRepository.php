@@ -7,19 +7,29 @@ use App\Filters\ProductFilter;
 use App\Models\Product;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
 
 class ProductRepository implements ProductRepositoryInterface
 {
     public function create(array $data): Product
     {
-        return Product::create($data);
+        $tagIds = Arr::pull($data, 'tag_ids', []);
+        $product = Product::create($data);
+        $product->tags()->sync($tagIds);
+
+        return $product->load(['category', 'brand', 'unit', 'size', 'color', 'tags']);
     }
 
     public function update(Product $product, array $data): Product
     {
+        $tagIds = Arr::pull($data, 'tag_ids', null);
         $product->update($data);
 
-        return $product->refresh();
+        if (is_array($tagIds)) {
+            $product->tags()->sync($tagIds);
+        }
+
+        return $product->refresh()->load(['category', 'brand', 'unit', 'size', 'color', 'tags']);
     }
 
     public function delete(Product $product): bool
@@ -39,13 +49,25 @@ class ProductRepository implements ProductRepositoryInterface
 
     public function paginate(ProductFilter $filter, int $perPage = 15): LengthAwarePaginator
     {
-        return $filter->apply(Product::query())
-            ->latest()
+        return $filter->apply(Product::query()->with(['category', 'brand', 'unit', 'size', 'color', 'tags']))
+            ->when($filter->sortParameters() === [], fn ($query) => $query->latest())
             ->paginate($filter->perPage($perPage));
+    }
+
+    public function findManyForListing(array $ids): Collection
+    {
+        if ($ids === []) {
+            return new Collection;
+        }
+
+        return Product::query()
+            ->with(['category', 'brand', 'unit', 'size', 'color', 'tags'])
+            ->whereIn('id', $ids, 'and', false)
+            ->get();
     }
 
     public function findManyForUpdate(array $ids): Collection
     {
-        return Product::whereIn('id', $ids)->lockForUpdate()->get();
+        return Product::whereIn('id', $ids, 'and', false)->lockForUpdate()->get();
     }
 }

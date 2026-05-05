@@ -23,7 +23,7 @@ class OrderItemResource extends JsonResource
             'refunded_quantity' => $this->refunded_quantity,
             'unit_price' => $this->unit_price,
             'line_total' => $this->line_total,
-            'product' => new ProductResource($this->whenLoaded('product')),
+            'product' => $this->whenLoaded('product', fn (): array => ProductResource::make($this->product)->resolve($request)),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

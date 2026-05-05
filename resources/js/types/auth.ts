@@ -1,7 +1,13 @@
 export type User = {
-    id: number;
+    id: string;
     name: string;
+    first_name?: string | null;
+    middle_name?: string | null;
+    last_name?: string | null;
     email: string;
+    role?: number | string;
+    role_label?: string;
+    is_admin?: boolean;
     avatar?: string;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;

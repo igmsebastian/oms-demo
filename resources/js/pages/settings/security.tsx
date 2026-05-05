@@ -1,23 +1,36 @@
-import { Form, Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import { useForm } from '@tanstack/react-form';
 import { ShieldCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { z } from 'zod';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
 import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
 import { edit } from '@/routes/security';
 import { disable, enable } from '@/routes/two-factor';
+import type { ServerFormErrors } from '@/shared/forms/errors';
+import { TanStackField } from '@/shared/forms/TanStackField';
 
 type Props = {
     canManageTwoFactor?: boolean;
     requiresConfirmation?: boolean;
     twoFactorEnabled?: boolean;
 };
+
+const passwordSchema = z
+    .object({
+        current_password: z.string().min(1, 'Enter your current password.'),
+        password: z.string().min(8, 'Password must be at least 8 characters.'),
+        password_confirmation: z.string().min(1, 'Confirm your new password.'),
+    })
+    .refine((value) => value.password === value.password_confirmation, {
+        message: 'Password confirmation does not match.',
+        path: ['password_confirmation'],
+    });
 
 export default function Security({
     canManageTwoFactor = false,
@@ -39,7 +52,44 @@ export default function Security({
         errors,
     } = useTwoFactorAuth();
     const [showSetupModal, setShowSetupModal] = useState<boolean>(false);
+    const [passwordProcessing, setPasswordProcessing] = useState(false);
+    const [twoFactorProcessing, setTwoFactorProcessing] = useState(false);
+    const [serverErrors, setServerErrors] = useState<ServerFormErrors>({});
     const prevTwoFactorEnabled = useRef(twoFactorEnabled);
+    const form = useForm({
+        defaultValues: {
+            current_password: '',
+            password: '',
+            password_confirmation: '',
+        },
+        validators: {
+            onSubmit: passwordSchema,
+        },
+        onSubmit: ({ value }) => {
+            setPasswordProcessing(true);
+            setServerErrors({});
+            const request = SecurityController.update.put();
+
+            router.visit(request.url, {
+                method: request.method,
+                data: value,
+                preserveScroll: true,
+                onError: (backendErrors) => {
+                    setServerErrors(backendErrors);
+
+                    if (backendErrors.password) {
+                        passwordInput.current?.focus();
+                    }
+
+                    if (backendErrors.current_password) {
+                        currentPasswordInput.current?.focus();
+                    }
+                },
+                onSuccess: () => form.reset(),
+                onFinish: () => setPasswordProcessing(false),
+            });
+        },
+    });
 
     useEffect(() => {
         if (prevTwoFactorEnabled.current && !twoFactorEnabled) {
@@ -48,6 +98,29 @@ export default function Security({
 
         prevTwoFactorEnabled.current = twoFactorEnabled;
     }, [twoFactorEnabled, clearTwoFactorAuthData]);
+
+    const disableTwoFactor = () => {
+        setTwoFactorProcessing(true);
+        const request = disable.delete();
+
+        router.visit(request.url, {
+            method: request.method,
+            preserveScroll: true,
+            onFinish: () => setTwoFactorProcessing(false),
+        });
+    };
+
+    const enableTwoFactor = () => {
+        setTwoFactorProcessing(true);
+        const request = enable.post();
+
+        router.visit(request.url, {
+            method: request.method,
+            preserveScroll: true,
+            onSuccess: () => setShowSetupModal(true),
+            onFinish: () => setTwoFactorProcessing(false),
+        });
+    };
 
     return (
         <>
@@ -62,91 +135,129 @@ export default function Security({
                     description="Ensure your account is using a long, random password to stay secure"
                 />
 
-                <Form
-                    {...SecurityController.update.form()}
-                    options={{
-                        preserveScroll: true,
-                    }}
-                    resetOnError={[
-                        'password',
-                        'password_confirmation',
-                        'current_password',
-                    ]}
-                    resetOnSuccess
-                    onError={(errors) => {
-                        if (errors.password) {
-                            passwordInput.current?.focus();
-                        }
-
-                        if (errors.current_password) {
-                            currentPasswordInput.current?.focus();
-                        }
-                    }}
+                <form
                     className="space-y-6"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        void form.handleSubmit();
+                    }}
                 >
-                    {({ errors, processing }) => (
-                        <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="current_password">
-                                    Current password
-                                </Label>
+                    <form.Field
+                        name="current_password"
+                        children={(field) => (
+                            <TanStackField
+                                field={field}
+                                label="Current password"
+                                serverError={serverErrors.current_password}
+                                required
+                            >
+                                {({
+                                    id,
+                                    name,
+                                    value,
+                                    isInvalid,
+                                    onBlur,
+                                    onChange,
+                                }) => (
+                                    <PasswordInput
+                                        id={id}
+                                        ref={currentPasswordInput}
+                                        name={name}
+                                        className="mt-1 block w-full"
+                                        autoComplete="current-password"
+                                        placeholder="Current password"
+                                        value={value}
+                                        onBlur={onBlur}
+                                        onChange={(event) =>
+                                            onChange(event.target.value)
+                                        }
+                                        aria-invalid={isInvalid}
+                                    />
+                                )}
+                            </TanStackField>
+                        )}
+                    />
 
-                                <PasswordInput
-                                    id="current_password"
-                                    ref={currentPasswordInput}
-                                    name="current_password"
-                                    className="mt-1 block w-full"
-                                    autoComplete="current-password"
-                                    placeholder="Current password"
-                                />
+                    <form.Field
+                        name="password"
+                        children={(field) => (
+                            <TanStackField
+                                field={field}
+                                label="New password"
+                                serverError={serverErrors.password}
+                                required
+                            >
+                                {({
+                                    id,
+                                    name,
+                                    value,
+                                    isInvalid,
+                                    onBlur,
+                                    onChange,
+                                }) => (
+                                    <PasswordInput
+                                        id={id}
+                                        ref={passwordInput}
+                                        name={name}
+                                        className="mt-1 block w-full"
+                                        autoComplete="new-password"
+                                        placeholder="New password"
+                                        value={value}
+                                        onBlur={onBlur}
+                                        onChange={(event) =>
+                                            onChange(event.target.value)
+                                        }
+                                        aria-invalid={isInvalid}
+                                    />
+                                )}
+                            </TanStackField>
+                        )}
+                    />
 
-                                <InputError message={errors.current_password} />
-                            </div>
+                    <form.Field
+                        name="password_confirmation"
+                        children={(field) => (
+                            <TanStackField
+                                field={field}
+                                label="Confirm password"
+                                serverError={serverErrors.password_confirmation}
+                                required
+                            >
+                                {({
+                                    id,
+                                    name,
+                                    value,
+                                    isInvalid,
+                                    onBlur,
+                                    onChange,
+                                }) => (
+                                    <PasswordInput
+                                        id={id}
+                                        name={name}
+                                        className="mt-1 block w-full"
+                                        autoComplete="new-password"
+                                        placeholder="Confirm password"
+                                        value={value}
+                                        onBlur={onBlur}
+                                        onChange={(event) =>
+                                            onChange(event.target.value)
+                                        }
+                                        aria-invalid={isInvalid}
+                                    />
+                                )}
+                            </TanStackField>
+                        )}
+                    />
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="password">New password</Label>
-
-                                <PasswordInput
-                                    id="password"
-                                    ref={passwordInput}
-                                    name="password"
-                                    className="mt-1 block w-full"
-                                    autoComplete="new-password"
-                                    placeholder="New password"
-                                />
-
-                                <InputError message={errors.password} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="password_confirmation">
-                                    Confirm password
-                                </Label>
-
-                                <PasswordInput
-                                    id="password_confirmation"
-                                    name="password_confirmation"
-                                    className="mt-1 block w-full"
-                                    autoComplete="new-password"
-                                    placeholder="Confirm password"
-                                />
-
-                                <InputError
-                                    message={errors.password_confirmation}
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                                <Button
-                                    disabled={processing}
-                                    data-test="update-password-button"
-                                >
-                                    Save password
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </Form>
+                    <div className="flex items-center gap-4">
+                        <Button
+                            disabled={passwordProcessing}
+                            data-test="update-password-button"
+                        >
+                            Save password
+                        </Button>
+                    </div>
+                </form>
             </div>
 
             {canManageTwoFactor && (
@@ -165,17 +276,14 @@ export default function Security({
                             </p>
 
                             <div className="relative inline">
-                                <Form {...disable.form()}>
-                                    {({ processing }) => (
-                                        <Button
-                                            variant="destructive"
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            Disable 2FA
-                                        </Button>
-                                    )}
-                                </Form>
+                                <Button
+                                    variant="destructive"
+                                    type="button"
+                                    disabled={twoFactorProcessing}
+                                    onClick={disableTwoFactor}
+                                >
+                                    Disable 2FA
+                                </Button>
                             </div>
 
                             <TwoFactorRecoveryCodes
@@ -202,21 +310,13 @@ export default function Security({
                                         Continue setup
                                     </Button>
                                 ) : (
-                                    <Form
-                                        {...enable.form()}
-                                        onSuccess={() =>
-                                            setShowSetupModal(true)
-                                        }
+                                    <Button
+                                        type="button"
+                                        disabled={twoFactorProcessing}
+                                        onClick={enableTwoFactor}
                                     >
-                                        {({ processing }) => (
-                                            <Button
-                                                type="submit"
-                                                disabled={processing}
-                                            >
-                                                Enable 2FA
-                                            </Button>
-                                        )}
-                                    </Form>
+                                        Enable 2FA
+                                    </Button>
                                 )}
                             </div>
                         </div>

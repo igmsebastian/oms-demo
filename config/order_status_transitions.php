@@ -18,6 +18,7 @@ return [
         ],
         OrderStatus::Processing->value => [
             OrderStatus::Packed->value,
+            OrderStatus::Shipped->value,
             OrderStatus::CancellationRequested->value,
             OrderStatus::PartiallyCancelled->value,
             OrderStatus::Cancelled->value,
@@ -30,6 +31,7 @@ return [
         ],
         OrderStatus::Delivered->value => [
             OrderStatus::Completed->value,
+            OrderStatus::RefundPending->value,
         ],
         OrderStatus::Completed->value => [],
         OrderStatus::CancellationRequested->value => [

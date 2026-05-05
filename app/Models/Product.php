@@ -6,13 +6,58 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['sku', 'name', 'description', 'price', 'stock_quantity', 'low_stock_threshold', 'is_active'])]
+#[Fillable([
+    'sku',
+    'name',
+    'description',
+    'product_category_id',
+    'product_brand_id',
+    'product_unit_id',
+    'product_size_id',
+    'product_color_id',
+    'price',
+    'stock_quantity',
+    'low_stock_threshold',
+    'is_active',
+])]
 class Product extends Model
 {
     use HasUlids, SoftDeletes;
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(ProductCategory::class, 'product_category_id');
+    }
+
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(ProductBrand::class, 'product_brand_id');
+    }
+
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(ProductUnit::class, 'product_unit_id');
+    }
+
+    public function size(): BelongsTo
+    {
+        return $this->belongsTo(ProductSize::class, 'product_size_id');
+    }
+
+    public function color(): BelongsTo
+    {
+        return $this->belongsTo(ProductColor::class, 'product_color_id');
+    }
+
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(ProductTag::class, 'product_tag', 'product_id', 'product_tag_id')->withTimestamps();
+    }
 
     public function orderItems(): HasMany
     {

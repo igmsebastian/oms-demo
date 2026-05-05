@@ -14,9 +14,10 @@ class OrderStatusTransitionService
         protected OrderActivityService $activities,
         protected OrderNotificationService $notifications,
         protected ReportService $reports,
+        protected OmsCacheService $cache,
     ) {}
 
-    public function transition(Order $order, OrderStatus $status, User $actor, array $data = []): Order
+    public function transition(Order $order, OrderStatus $status, ?User $actor, array $data = []): Order
     {
         $fromStatus = $order->status;
 
@@ -48,6 +49,7 @@ class OrderStatusTransitionService
 
         $this->notifications->queueForStatus($order, $status, $actor);
         $this->reports->invalidate();
+        $this->cache->invalidateOrders();
 
         return $order;
     }
@@ -58,7 +60,7 @@ class OrderStatusTransitionService
 
         if (! in_array($toStatus->value, $allowed, true)) {
             throw ValidationException::withMessages([
-                'status' => "Cannot transition order from {$fromStatus->label()} to {$toStatus->label()}.",
+                'status' => "This order cannot move from {$fromStatus->label()} to {$toStatus->label()}.",
             ]);
         }
     }

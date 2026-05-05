@@ -4,15 +4,18 @@ namespace App\Actions\Fortify;
 
 use App\Concerns\PasswordValidationRules;
 use App\Concerns\ProfileValidationRules;
-use App\Mail\WelcomeCustomerMail;
 use App\Models\User;
-use Illuminate\Support\Facades\Mail;
+use App\Services\OrderNotificationService;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
 
 class CreateNewUser implements CreatesNewUsers
 {
     use PasswordValidationRules, ProfileValidationRules;
+
+    public function __construct(
+        protected OrderNotificationService $notifications,
+    ) {}
 
     /**
      * Validate and create a newly registered user.
@@ -26,13 +29,21 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
+        $profile = filled($input['first_name'] ?? null)
+            ? [
+                'first_name' => $input['first_name'],
+                'middle_name' => $input['middle_name'] ?? null,
+                'last_name' => $input['last_name'] ?? '',
+            ]
+            : ['name' => $input['name']];
+
         $user = User::create([
-            'name' => $input['name'],
+            ...$profile,
             'email' => $input['email'],
             'password' => $input['password'],
         ]);
 
-        Mail::to($user)->queue(new WelcomeCustomerMail($user));
+        $this->notifications->queueUserEmail($user, 'welcome_customer');
 
         return $user;
     }

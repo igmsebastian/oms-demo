@@ -29,13 +29,13 @@ class OrderCancellationService
 
             if ($order->status === OrderStatus::Cancelled) {
                 throw ValidationException::withMessages([
-                    'status' => 'This order is already cancelled.',
+                    'status' => 'This order is already cancelled. No action is needed.',
                 ]);
             }
 
             if ($order->status === OrderStatus::CancellationRequested) {
                 throw ValidationException::withMessages([
-                    'status' => 'A cancellation has already been requested for this order.',
+                    'status' => 'A cancellation request already exists for this order.',
                 ]);
             }
 
@@ -65,7 +65,7 @@ class OrderCancellationService
 
             if ($order->status === OrderStatus::Cancelled) {
                 throw ValidationException::withMessages([
-                    'status' => 'This order is already cancelled.',
+                    'status' => 'This order is already cancelled. No action is needed.',
                 ]);
             }
 
@@ -131,7 +131,7 @@ class OrderCancellationService
 
             if (! in_array($order->status, [OrderStatus::Confirmed, OrderStatus::Processing, OrderStatus::PartiallyCancelled], true)) {
                 throw ValidationException::withMessages([
-                    'status' => 'Only confirmed or processing orders can be partially cancelled.',
+                    'status' => 'This item can only be partially cancelled while the order is confirmed or processing.',
                 ]);
             }
 
@@ -139,7 +139,7 @@ class OrderCancellationService
 
             if ($quantity < 1 || $quantity > $availableQuantity) {
                 throw ValidationException::withMessages([
-                    'quantity' => 'Cancellation quantity exceeds the available item quantity.',
+                    'quantity' => 'Enter a cancellation quantity that is available for this item.',
                 ]);
             }
 

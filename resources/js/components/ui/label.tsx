@@ -2,11 +2,24 @@ import * as LabelPrimitive from "@radix-ui/react-label"
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
+type LabelProps = React.ComponentProps<typeof LabelPrimitive.Root> & {
+  required?: boolean
+  requiredText?: string
+}
 
 function Label({
   className,
+  children,
+  required = false,
+  requiredText = "Required",
   ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
+}: LabelProps) {
   return (
     <LabelPrimitive.Root
       data-slot="label"
@@ -15,7 +28,25 @@ function Label({
         className
       )}
       {...props}
-    />
+    >
+      {children}
+      {required && (
+        <>
+          {" "}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                aria-label={requiredText}
+                className="inline-flex cursor-help text-destructive"
+              >
+                *
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{requiredText}</TooltipContent>
+          </Tooltip>
+        </>
+      )}
+    </LabelPrimitive.Root>
   )
 }
 

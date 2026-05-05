@@ -1,9 +1,10 @@
-import { Form } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
+import { useForm } from '@tanstack/react-form';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { Check, Copy, ScanLine } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { z } from 'zod';
 import AlertError from '@/components/alert-error';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -12,6 +13,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Field, FieldError } from '@/components/ui/field';
 import {
     InputOTP,
     InputOTPGroup,
@@ -22,6 +24,20 @@ import { useAppearance } from '@/hooks/use-appearance';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
 import { confirm } from '@/routes/two-factor';
+import { fieldErrors } from '@/shared/forms/errors';
+import type { ServerFormErrors } from '@/shared/forms/errors';
+
+const twoFactorConfirmSchema = z.object({
+    code: z
+        .string()
+        .length(OTP_MAX_LENGTH, `Enter the ${OTP_MAX_LENGTH}-digit code.`),
+});
+
+type TwoFactorConfirmErrors = ServerFormErrors & {
+    confirmTwoFactorAuthentication?: {
+        code?: string;
+    };
+};
 
 function GridScanIcon() {
     return (
@@ -145,8 +161,36 @@ function TwoFactorVerificationStep({
     onClose: () => void;
     onBack: () => void;
 }) {
-    const [code, setCode] = useState<string>('');
     const pinInputContainerRef = useRef<HTMLDivElement>(null);
+    const [processing, setProcessing] = useState(false);
+    const [serverErrors, setServerErrors] = useState<TwoFactorConfirmErrors>(
+        {},
+    );
+    const form = useForm({
+        defaultValues: {
+            code: '',
+        },
+        validators: {
+            onSubmit: twoFactorConfirmSchema,
+        },
+        onSubmit: ({ value }) => {
+            setProcessing(true);
+            setServerErrors({});
+            const request = confirm.post();
+
+            router.visit(request.url, {
+                method: request.method,
+                data: value,
+                preserveScroll: true,
+                onSuccess: () => onClose(),
+                onError: (backendErrors) => {
+                    setServerErrors(backendErrors as TwoFactorConfirmErrors);
+                    form.reset();
+                },
+                onFinish: () => setProcessing(false),
+            });
+        },
+    });
 
     useEffect(() => {
         setTimeout(() => {
@@ -155,77 +199,95 @@ function TwoFactorVerificationStep({
     }, []);
 
     return (
-        <Form
-            {...confirm.form()}
-            onSuccess={() => onClose()}
-            resetOnError
-            resetOnSuccess
+        <form
+            onSubmit={(event) => {
+                event.preventDefault();
+                void form.handleSubmit();
+            }}
         >
-            {({
-                processing,
-                errors,
-            }: {
-                processing: boolean;
-                errors?: { confirmTwoFactorAuthentication?: { code?: string } };
-            }) => (
-                <>
-                    <div
-                        ref={pinInputContainerRef}
-                        className="relative w-full space-y-3"
-                    >
-                        <div className="flex w-full flex-col items-center space-y-3 py-2">
-                            <InputOTP
-                                id="otp"
-                                name="code"
-                                maxLength={OTP_MAX_LENGTH}
-                                onChange={setCode}
-                                disabled={processing}
-                                pattern={REGEXP_ONLY_DIGITS}
-                                autoFocus
-                            >
-                                <InputOTPGroup>
-                                    {Array.from(
-                                        { length: OTP_MAX_LENGTH },
-                                        (_, index) => (
-                                            <InputOTPSlot
-                                                key={index}
-                                                index={index}
-                                            />
-                                        ),
-                                    )}
-                                </InputOTPGroup>
-                            </InputOTP>
-                            <InputError
-                                message={
-                                    errors?.confirmTwoFactorAuthentication?.code
-                                }
-                            />
-                        </div>
+            <div
+                ref={pinInputContainerRef}
+                className="relative w-full space-y-3"
+            >
+                <form.Field
+                    name="code"
+                    children={(field) => {
+                        const errors = fieldErrors(
+                            field.state.meta.errors,
+                            serverErrors.code ??
+                                serverErrors.confirmTwoFactorAuthentication
+                                    ?.code,
+                        );
+                        const isInvalid = errors.length > 0;
 
-                        <div className="flex w-full space-x-5">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="flex-1"
-                                onClick={onBack}
-                                disabled={processing}
+                        return (
+                            <Field
+                                data-invalid={isInvalid}
+                                className="flex w-full flex-col items-center space-y-3 py-2"
                             >
-                                Back
-                            </Button>
+                                <InputOTP
+                                    id="otp"
+                                    name={field.name}
+                                    maxLength={OTP_MAX_LENGTH}
+                                    value={field.state.value}
+                                    onChange={(value) =>
+                                        field.handleChange(value)
+                                    }
+                                    disabled={processing}
+                                    pattern={REGEXP_ONLY_DIGITS}
+                                    autoFocus
+                                    aria-invalid={isInvalid}
+                                >
+                                    <InputOTPGroup>
+                                        {Array.from(
+                                            { length: OTP_MAX_LENGTH },
+                                            (_, index) => (
+                                                <InputOTPSlot
+                                                    key={index}
+                                                    index={index}
+                                                />
+                                            ),
+                                        )}
+                                    </InputOTPGroup>
+                                </InputOTP>
+                                <FieldError errors={errors} />
+                            </Field>
+                        );
+                    }}
+                />
+
+                <div className="flex w-full space-x-5">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={onBack}
+                        disabled={processing}
+                    >
+                        Back
+                    </Button>
+                    <form.Subscribe
+                        selector={(state) => ({
+                            code: state.values.code,
+                            canSubmit: state.canSubmit,
+                        })}
+                        children={({ code, canSubmit }) => (
                             <Button
                                 type="submit"
                                 className="flex-1"
                                 disabled={
-                                    processing || code.length < OTP_MAX_LENGTH
+                                    processing ||
+                                    !canSubmit ||
+                                    code.length < OTP_MAX_LENGTH
                                 }
                             >
                                 Confirm
                             </Button>
-                        </div>
-                    </div>
-                </>
-            )}
-        </Form>
+                        )}
+                    />
+                </div>
+            </div>
+        </form>
     );
 }
 

@@ -42,7 +42,7 @@ class PartialCancelOrderItemRequest extends FormRequest
                 $available = $item->quantity - $item->cancelled_quantity;
 
                 if ((int) $this->input('quantity') > $available) {
-                    $validator->errors()->add('quantity', 'Cancellation quantity exceeds the available item quantity.');
+                    $validator->errors()->add('quantity', 'Enter a cancellation quantity that is available for this item.');
                 }
             },
         ];

@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Enums\OrderActivityEvent;
 use App\Enums\OrderStatus;
 use App\Enums\RefundStatus;
+use App\Enums\RefundStockDisposition;
 use App\Models\Order;
 use App\Models\OrderRefund;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -16,6 +18,7 @@ class OrderRefundService
     public function __construct(
         protected OrderActivityService $activities,
         protected OrderStatusTransitionService $transitions,
+        protected InventoryService $inventory,
         protected ReportService $reports,
     ) {}
 
@@ -26,13 +29,13 @@ class OrderRefundService
 
             if ($order->status === OrderStatus::Refunded || $order->refunded_at !== null) {
                 throw ValidationException::withMessages([
-                    'status' => 'This order has already been refunded.',
+                    'status' => 'This order is already refunded. No action is needed.',
                 ]);
             }
 
-            if (! in_array($order->status, [OrderStatus::Cancelled, OrderStatus::PartiallyCancelled], true)) {
+            if (! in_array($order->status, [OrderStatus::Delivered, OrderStatus::Cancelled, OrderStatus::PartiallyCancelled], true)) {
                 throw ValidationException::withMessages([
-                    'status' => 'Only cancelled or partially cancelled orders can be refunded.',
+                    'status' => 'Refunds are only available for delivered, cancelled, or partially cancelled orders.',
                 ]);
             }
 
@@ -40,7 +43,7 @@ class OrderRefundService
 
             if ($amount <= 0 || $amount > (float) $order->total_amount) {
                 throw ValidationException::withMessages([
-                    'amount' => 'Refund amount must be greater than zero and cannot exceed the order total.',
+                    'amount' => 'Enter a refund amount greater than 0 and not higher than the order total.',
                 ]);
             }
 
@@ -54,7 +57,7 @@ class OrderRefundService
             ]);
 
             $this->transitions->transition($order, OrderStatus::RefundPending, $actor, [
-                'description' => $data['reason'] ?? null,
+                'description' => $data['note'] ?? $data['reason'] ?? null,
                 'metadata' => ['refund_id' => $refund->id],
             ]);
 
@@ -72,7 +75,7 @@ class OrderRefundService
 
             if ($refund->status !== RefundStatus::Pending) {
                 throw ValidationException::withMessages([
-                    'status' => 'Only pending refunds can be marked as processing.',
+                    'status' => 'Only pending refunds can be moved to processing.',
                 ]);
             }
 
@@ -90,28 +93,61 @@ class OrderRefundService
         });
     }
 
-    public function markCompleted(OrderRefund $refund, User $actor): OrderRefund
-    {
-        return DB::transaction(function () use ($refund, $actor): OrderRefund {
-            $refund = OrderRefund::with('order')
+    public function markCompleted(
+        OrderRefund $refund,
+        User $actor,
+        RefundStockDisposition $stockDisposition = RefundStockDisposition::BadStock,
+        ?string $note = null,
+    ): OrderRefund {
+        return DB::transaction(function () use ($refund, $actor, $stockDisposition, $note): OrderRefund {
+            $refund = OrderRefund::with('order.items')
                 ->whereKey($refund->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
             if ($refund->status === RefundStatus::Completed || $refund->order->status === OrderStatus::Refunded) {
                 throw ValidationException::withMessages([
-                    'status' => 'This refund is already completed.',
+                    'status' => 'This refund is already completed. No action is needed.',
                 ]);
+            }
+
+            foreach ($refund->order->items as $item) {
+                $eligibleQuantity = $item->quantity - $item->cancelled_quantity - $item->refunded_quantity;
+
+                if ($eligibleQuantity < 1) {
+                    continue;
+                }
+
+                if ($stockDisposition === RefundStockDisposition::GoodStock) {
+                    $product = Product::whereKey($item->product_id)->lockForUpdate()->firstOrFail();
+
+                    $this->inventory->restoreStock($product, $eligibleQuantity, [
+                        'order' => $refund->order,
+                        'order_item' => $item,
+                        'actor' => $actor,
+                        'reason' => $note ?? 'Refund returned to good stock',
+                        'metadata' => ['refund_id' => $refund->id, RefundStockDisposition::MetadataKey => $stockDisposition->value],
+                    ]);
+                }
+
+                $item->forceFill([
+                    'refunded_quantity' => $item->refunded_quantity + $eligibleQuantity,
+                ])->save();
             }
 
             $refund->forceFill([
                 'status' => RefundStatus::Completed,
                 'processed_by_user_id' => $actor->id,
+                'metadata' => [
+                    ...($refund->metadata ?? []),
+                    RefundStockDisposition::MetadataKey => $stockDisposition->value,
+                ],
                 'processed_at' => now(),
             ])->save();
 
             $this->transitions->transition($refund->order, OrderStatus::Refunded, $actor, [
-                'metadata' => ['refund_id' => $refund->id],
+                'description' => $note,
+                'metadata' => ['refund_id' => $refund->id, RefundStockDisposition::MetadataKey => $stockDisposition->value],
             ]);
 
             $this->reports->invalidate();

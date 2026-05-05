@@ -51,7 +51,7 @@ class StoreOrderRequest extends FormRequest
                     ->exists();
 
                 if (! $belongsToUser) {
-                    $validator->errors()->add('user_address_id', 'The selected address is invalid.');
+                    $validator->errors()->add('user_address_id', 'Choose one of your saved addresses.');
                 }
             },
         ];

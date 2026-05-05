@@ -22,6 +22,8 @@ class OrderService
         protected OrderActivityService $activities,
         protected OrderNotificationService $notifications,
         protected OrderStatusTransitionService $transitions,
+        protected ReportService $reports,
+        protected OmsCacheService $cache,
     ) {}
 
     public function createOrder(User $user, array $data): Order
@@ -31,7 +33,7 @@ class OrderService
 
             if ($items->isEmpty()) {
                 throw ValidationException::withMessages([
-                    'items' => 'An order must contain at least one item.',
+                    'items' => 'Add at least one product to the order.',
                 ]);
             }
 
@@ -50,13 +52,13 @@ class OrderService
 
                 if (! $product) {
                     throw ValidationException::withMessages([
-                        "items.{$index}.product_id" => 'The selected product is invalid or inactive.',
+                        "items.{$index}.product_id" => 'Choose an active product for this item.',
                     ]);
                 }
 
                 if ($quantity < 1) {
                     throw ValidationException::withMessages([
-                        "items.{$index}.quantity" => 'Quantity must be at least 1.',
+                        "items.{$index}.quantity" => 'Enter a quantity of at least 1.',
                     ]);
                 }
 
@@ -95,14 +97,15 @@ class OrderService
             ]);
 
             $this->notifications->queueOrderEmail($order, 'order_created', $user);
+            $this->invalidateOrderReads();
 
             return $order;
         });
     }
 
-    public function confirmOrder(Order $order, User $actor): Order
+    public function confirmOrder(Order $order, User $actor, ?string $note = null): Order
     {
-        return DB::transaction(function () use ($order, $actor): Order {
+        return DB::transaction(function () use ($order, $actor, $note): Order {
             $order = Order::with('items')
                 ->whereKey($order->id)
                 ->lockForUpdate()
@@ -110,7 +113,7 @@ class OrderService
 
             if ($order->status !== OrderStatus::Pending) {
                 throw ValidationException::withMessages([
-                    'status' => 'Only pending orders can be confirmed.',
+                    'status' => 'This order must be pending before it can be confirmed.',
                 ]);
             }
 
@@ -125,27 +128,94 @@ class OrderService
                 ]);
             }
 
-            return $this->transitions->transition($order, OrderStatus::Confirmed, $actor);
+            return $this->transitions->transition($order, OrderStatus::Confirmed, $actor, [
+                'description' => $note,
+            ]);
         })->load(['user', 'items.product', 'activities']);
     }
 
-    public function updateStatus(Order $order, OrderStatus $status, User $actor): Order
+    public function fulfillOrder(Order $order, User $actor, ?string $note = null): Order
     {
-        return DB::transaction(function () use ($order, $status, $actor): Order {
+        return DB::transaction(function () use ($order, $actor, $note): Order {
+            $order = $this->confirmOrder($order, $actor, $note);
+
+            return $this->transitions->transition($order, OrderStatus::Processing, $actor, [
+                'description' => $note,
+            ]);
+        })->load(['user', 'items.product', 'activities']);
+    }
+
+    public function updateStatus(Order $order, OrderStatus $status, User $actor, ?string $note = null): Order
+    {
+        return DB::transaction(function () use ($order, $status, $actor, $note): Order {
             $order = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
 
-            return $this->transitions->transition($order, $status, $actor);
+            return $this->transitions->transition($order, $status, $actor, [
+                'description' => $note,
+            ]);
         });
     }
 
     public function getPaginatedOrders(OrderFilter $filter): LengthAwarePaginator
     {
-        return $this->orders->paginate($filter);
+        $payload = $this->cache->remember(
+            OmsCacheService::ORDERS_VERSION_KEY,
+            'orders.index.admin',
+            $filter->cacheFingerprint(15),
+            now()->addMinutes(5),
+            fn (): array => $this->cache->paginatorPayload($this->orders->paginate($filter)),
+        );
+
+        return $this->cache->restorePaginator(
+            $payload,
+            $this->orders->findManyForListing($payload['ids'] ?? []),
+        );
     }
 
     public function getPaginatedOrdersForUser(OrderFilter $filter, User $user): LengthAwarePaginator
     {
-        return $this->orders->paginateForUser($filter, $user);
+        $payload = $this->cache->remember(
+            OmsCacheService::ORDERS_VERSION_KEY,
+            'orders.index.user',
+            [
+                'user_id' => $user->id,
+                ...$filter->cacheFingerprint(15),
+            ],
+            now()->addMinutes(5),
+            fn (): array => $this->cache->paginatorPayload($this->orders->paginateForUser($filter, $user)),
+        );
+
+        return $this->cache->restorePaginator(
+            $payload,
+            $this->orders->findManyForListing($payload['ids'] ?? []),
+        );
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function statusCounts(?User $user = null): array
+    {
+        return $this->cache->remember(
+            OmsCacheService::ORDERS_VERSION_KEY,
+            'orders.status_counts',
+            [
+                'user_id' => $user?->id,
+                'is_admin' => $user?->isAdmin() ?? true,
+            ],
+            now()->addMinutes(5),
+            function () use ($user): array {
+                $counts = Order::query()
+                    ->when($user && ! $user->isAdmin(), fn ($query) => $query->whereBelongsTo($user))
+                    ->selectRaw('status, count(*) as aggregate')
+                    ->groupBy('status')
+                    ->pluck('aggregate', 'status');
+
+                return collect(OrderStatus::cases())->mapWithKeys(fn (OrderStatus $status): array => [
+                    $status->nameValue() => (int) ($counts[$status->value] ?? 0),
+                ])->all();
+            },
+        );
     }
 
     protected function shippingSnapshot(User $user, array $data): array
@@ -174,7 +244,7 @@ class OrderService
         foreach ($required as $field) {
             if (blank($data[$field] ?? null)) {
                 throw ValidationException::withMessages([
-                    $field => 'Shipping address details are required.',
+                    $field => 'Enter the shipping address or choose a saved address.',
                 ]);
             }
         }
@@ -196,5 +266,11 @@ class OrderService
             'shipping_post_code' => $data['shipping_post_code'],
             'shipping_full_address' => $data['shipping_full_address'] ?? $parts->implode(', '),
         ];
+    }
+
+    protected function invalidateOrderReads(): void
+    {
+        $this->reports->invalidate();
+        $this->cache->invalidateOrders();
     }
 }

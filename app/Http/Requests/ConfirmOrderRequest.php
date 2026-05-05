@@ -21,7 +21,9 @@ class ConfirmOrderRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [];
+        return [
+            'note' => ['nullable', 'string', 'max:5000'],
+        ];
     }
 
     /**
@@ -34,7 +36,7 @@ class ConfirmOrderRequest extends FormRequest
                 $order = $this->route('order');
 
                 if ($order instanceof Order && $order->status !== OrderStatus::Pending) {
-                    $validator->errors()->add('status', 'Only pending orders can be confirmed.');
+                    $validator->errors()->add('status', 'This order must be pending before it can be confirmed.');
                 }
             },
         ];

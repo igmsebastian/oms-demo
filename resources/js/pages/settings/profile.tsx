@@ -1,13 +1,22 @@
-import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useForm } from '@tanstack/react-form';
+import { useState } from 'react';
+import { z } from 'zod';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/profile';
 import { send } from '@/routes/verification';
+import type { ServerFormErrors } from '@/shared/forms/errors';
+import { TanStackField } from '@/shared/forms/TanStackField';
+
+const profileSchema = z.object({
+    first_name: z.string().trim().min(1, 'Enter first name.'),
+    middle_name: z.string(),
+    last_name: z.string().trim().min(1, 'Enter last name.'),
+    email: z.string().email('Enter a valid email address.'),
+});
 
 export default function Profile({
     mustVerifyEmail,
@@ -17,6 +26,32 @@ export default function Profile({
     status?: string;
 }) {
     const { auth } = usePage().props;
+    const [processing, setProcessing] = useState(false);
+    const [serverErrors, setServerErrors] = useState<ServerFormErrors>({});
+    const form = useForm({
+        defaultValues: {
+            first_name: auth.user.first_name ?? '',
+            middle_name: auth.user.middle_name ?? '',
+            last_name: auth.user.last_name ?? '',
+            email: auth.user.email,
+        },
+        validators: {
+            onSubmit: profileSchema,
+        },
+        onSubmit: ({ value }) => {
+            setProcessing(true);
+            setServerErrors({});
+            const request = ProfileController.update.patch();
+
+            router.visit(request.url, {
+                method: request.method,
+                data: value,
+                preserveScroll: true,
+                onError: setServerErrors,
+                onFinish: () => setProcessing(false),
+            });
+        },
+    });
 
     return (
         <>
@@ -31,93 +66,190 @@ export default function Profile({
                     description="Update your name and email address"
                 />
 
-                <Form
-                    {...ProfileController.update.form()}
-                    options={{
-                        preserveScroll: true,
-                    }}
+                <form
                     className="space-y-6"
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        void form.handleSubmit();
+                    }}
                 >
-                    {({ processing, errors }) => (
-                        <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">Name</Label>
-
-                                <Input
-                                    id="name"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.name}
-                                    name="name"
+                    <div className="grid gap-2 md:grid-cols-3">
+                        <form.Field
+                            name="first_name"
+                            children={(field) => (
+                                <TanStackField
+                                    field={field}
+                                    label="First name"
+                                    serverError={serverErrors.first_name}
                                     required
-                                    autoComplete="name"
-                                    placeholder="Full name"
-                                />
-
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.name}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.email}
-                                    name="email"
+                                >
+                                    {({
+                                        id,
+                                        name,
+                                        value,
+                                        isInvalid,
+                                        onBlur,
+                                        onChange,
+                                    }) => (
+                                        <Input
+                                            id={id}
+                                            className="mt-1 block w-full"
+                                            name={name}
+                                            required
+                                            autoComplete="given-name"
+                                            placeholder="First name"
+                                            value={value}
+                                            onBlur={onBlur}
+                                            onChange={(event) =>
+                                                onChange(event.target.value)
+                                            }
+                                            aria-invalid={isInvalid}
+                                        />
+                                    )}
+                                </TanStackField>
+                            )}
+                        />
+                        <form.Field
+                            name="middle_name"
+                            children={(field) => (
+                                <TanStackField
+                                    field={field}
+                                    label="Middle name"
+                                    serverError={serverErrors.middle_name}
+                                >
+                                    {({
+                                        id,
+                                        name,
+                                        value,
+                                        isInvalid,
+                                        onBlur,
+                                        onChange,
+                                    }) => (
+                                        <Input
+                                            id={id}
+                                            className="mt-1 block w-full"
+                                            name={name}
+                                            autoComplete="additional-name"
+                                            placeholder="Middle name"
+                                            value={value}
+                                            onBlur={onBlur}
+                                            onChange={(event) =>
+                                                onChange(event.target.value)
+                                            }
+                                            aria-invalid={isInvalid}
+                                        />
+                                    )}
+                                </TanStackField>
+                            )}
+                        />
+                        <form.Field
+                            name="last_name"
+                            children={(field) => (
+                                <TanStackField
+                                    field={field}
+                                    label="Last name"
+                                    serverError={serverErrors.last_name}
                                     required
-                                    autoComplete="username"
-                                    placeholder="Email address"
-                                />
+                                >
+                                    {({
+                                        id,
+                                        name,
+                                        value,
+                                        isInvalid,
+                                        onBlur,
+                                        onChange,
+                                    }) => (
+                                        <Input
+                                            id={id}
+                                            className="mt-1 block w-full"
+                                            name={name}
+                                            required
+                                            autoComplete="family-name"
+                                            placeholder="Last name"
+                                            value={value}
+                                            onBlur={onBlur}
+                                            onChange={(event) =>
+                                                onChange(event.target.value)
+                                            }
+                                            aria-invalid={isInvalid}
+                                        />
+                                    )}
+                                </TanStackField>
+                            )}
+                        />
+                    </div>
 
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.email}
-                                />
-                            </div>
+                    <form.Field
+                        name="email"
+                        children={(field) => (
+                            <TanStackField
+                                field={field}
+                                label="Email address"
+                                serverError={serverErrors.email}
+                                required
+                            >
+                                {({
+                                    id,
+                                    name,
+                                    value,
+                                    isInvalid,
+                                    onBlur,
+                                    onChange,
+                                }) => (
+                                    <Input
+                                        id={id}
+                                        type="email"
+                                        className="mt-1 block w-full"
+                                        name={name}
+                                        required
+                                        autoComplete="username"
+                                        placeholder="Email address"
+                                        value={value}
+                                        onBlur={onBlur}
+                                        onChange={(event) =>
+                                            onChange(event.target.value)
+                                        }
+                                        aria-invalid={isInvalid}
+                                    />
+                                )}
+                            </TanStackField>
+                        )}
+                    />
 
-                            {mustVerifyEmail &&
-                                auth.user.email_verified_at === null && (
-                                    <div>
-                                        <p className="-mt-4 text-sm text-muted-foreground">
-                                            Your email address is unverified.{' '}
-                                            <Link
-                                                href={send()}
-                                                as="button"
-                                                className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
-                                            >
-                                                Click here to resend the
-                                                verification email.
-                                            </Link>
-                                        </p>
+                    {mustVerifyEmail &&
+                        auth.user.email_verified_at === null && (
+                            <div>
+                                <p className="-mt-4 text-sm text-muted-foreground">
+                                    Your email address is unverified.{' '}
+                                    <Link
+                                        href={send()}
+                                        as="button"
+                                        className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                    >
+                                        Click here to resend the verification
+                                        email.
+                                    </Link>
+                                </p>
 
-                                        {status ===
-                                            'verification-link-sent' && (
-                                            <div className="mt-2 text-sm font-medium text-green-600">
-                                                A new verification link has been
-                                                sent to your email address.
-                                            </div>
-                                        )}
+                                {status === 'verification-link-sent' && (
+                                    <div className="mt-2 text-sm font-medium text-green-600">
+                                        A new verification link has been sent to
+                                        your email address.
                                     </div>
                                 )}
-
-                            <div className="flex items-center gap-4">
-                                <Button
-                                    disabled={processing}
-                                    data-test="update-profile-button"
-                                >
-                                    Save
-                                </Button>
                             </div>
-                        </>
-                    )}
-                </Form>
-            </div>
+                        )}
 
-            <DeleteUser />
+                    <div className="flex items-center gap-4">
+                        <Button
+                            disabled={processing}
+                            data-test="update-profile-button"
+                        >
+                            Save
+                        </Button>
+                    </div>
+                </form>
+            </div>
         </>
     );
 }

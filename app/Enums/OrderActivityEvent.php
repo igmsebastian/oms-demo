@@ -22,4 +22,5 @@ enum OrderActivityEvent: string
     case EmailQueued = 'email_queued';
     case EmailSent = 'email_sent';
     case EmailFailed = 'email_failed';
+    case RemarkAdded = 'remark_added';
 }

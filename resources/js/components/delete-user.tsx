@@ -1,8 +1,9 @@
-import { Form } from '@inertiajs/react';
-import { useRef } from 'react';
+import { router } from '@inertiajs/react';
+import { useForm } from '@tanstack/react-form';
+import { useRef, useState } from 'react';
+import { z } from 'zod';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,10 +15,48 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { fieldErrors } from '@/shared/forms/errors';
+import type { ServerFormErrors } from '@/shared/forms/errors';
+
+const deleteUserSchema = z.object({
+    password: z.string().min(1, 'Enter your password to delete your account.'),
+});
 
 export default function DeleteUser() {
     const passwordInput = useRef<HTMLInputElement>(null);
+    const [processing, setProcessing] = useState(false);
+    const [serverErrors, setServerErrors] = useState<ServerFormErrors>({});
+    const form = useForm({
+        defaultValues: {
+            password: '',
+        },
+        validators: {
+            onSubmit: deleteUserSchema,
+        },
+        onSubmit: ({ value }) => {
+            setProcessing(true);
+            setServerErrors({});
+            const request = ProfileController.destroy.delete();
+
+            router.visit(request.url, {
+                method: request.method,
+                data: value,
+                preserveScroll: true,
+                onError: (backendErrors) => {
+                    setServerErrors(backendErrors);
+                    passwordInput.current?.focus();
+                },
+                onSuccess: () => form.reset(),
+                onFinish: () => setProcessing(false),
+            });
+        },
+    });
+
+    const resetForm = () => {
+        form.reset();
+        setServerErrors({});
+    };
 
     return (
         <div className="space-y-6">
@@ -54,64 +93,75 @@ export default function DeleteUser() {
                             permanently delete your account.
                         </DialogDescription>
 
-                        <Form
-                            {...ProfileController.destroy.form()}
-                            options={{
-                                preserveScroll: true,
-                            }}
-                            onError={() => passwordInput.current?.focus()}
-                            resetOnSuccess
+                        <form
                             className="space-y-6"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                void form.handleSubmit();
+                            }}
                         >
-                            {({ resetAndClearErrors, processing, errors }) => (
-                                <>
-                                    <div className="grid gap-2">
-                                        <Label
-                                            htmlFor="password"
-                                            className="sr-only"
-                                        >
-                                            Password
-                                        </Label>
+                            <form.Field
+                                name="password"
+                                children={(field) => {
+                                    const errors = fieldErrors(
+                                        field.state.meta.errors,
+                                        serverErrors.password,
+                                    );
+                                    const isInvalid = errors.length > 0;
 
-                                        <PasswordInput
-                                            id="password"
-                                            name="password"
-                                            ref={passwordInput}
-                                            placeholder="Password"
-                                            autoComplete="current-password"
-                                        />
+                                    return (
+                                        <Field data-invalid={isInvalid}>
+                                            <FieldLabel
+                                                htmlFor={field.name}
+                                                className="sr-only"
+                                                required
+                                            >
+                                                Password
+                                            </FieldLabel>
 
-                                        <InputError message={errors.password} />
-                                    </div>
-
-                                    <DialogFooter className="gap-2">
-                                        <DialogClose asChild>
-                                            <Button
-                                                variant="secondary"
-                                                onClick={() =>
-                                                    resetAndClearErrors()
+                                            <PasswordInput
+                                                id={field.name}
+                                                name={field.name}
+                                                ref={passwordInput}
+                                                placeholder="Password"
+                                                autoComplete="current-password"
+                                                value={field.state.value}
+                                                onBlur={field.handleBlur}
+                                                onChange={(event) =>
+                                                    field.handleChange(
+                                                        event.target.value,
+                                                    )
                                                 }
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </DialogClose>
+                                                aria-invalid={isInvalid}
+                                            />
 
-                                        <Button
-                                            variant="destructive"
-                                            disabled={processing}
-                                            asChild
-                                        >
-                                            <button
-                                                type="submit"
-                                                data-test="confirm-delete-user-button"
-                                            >
-                                                Delete account
-                                            </button>
-                                        </Button>
-                                    </DialogFooter>
-                                </>
-                            )}
-                        </Form>
+                                            <FieldError errors={errors} />
+                                        </Field>
+                                    );
+                                }}
+                            />
+
+                            <DialogFooter className="gap-2">
+                                <DialogClose asChild>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={resetForm}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </DialogClose>
+
+                                <Button
+                                    type="submit"
+                                    variant="destructive"
+                                    disabled={processing}
+                                    data-test="confirm-delete-user-button"
+                                >
+                                    Delete account
+                                </Button>
+                            </DialogFooter>
+                        </form>
                     </DialogContent>
                 </Dialog>
             </div>
