@@ -16,9 +16,9 @@ return new class extends Migration
             $table->string('sku')->unique();
             $table->string('name');
             $table->text('description')->nullable();
-            $table->rawColumn('price', 'decimal(12, 2) not null check (price >= 0)');
-            $table->rawColumn('stock_quantity', 'integer not null default 0 check (stock_quantity >= 0)');
-            $table->rawColumn('low_stock_threshold', 'integer not null default 5 check (low_stock_threshold >= 0)');
+            $table->decimal('price', 12, 2);
+            $table->unsignedInteger('stock_quantity')->default(0);
+            $table->unsignedInteger('low_stock_threshold')->default(5);
             $table->boolean('is_active')->default(true)->index();
             $table->timestamps();
             $table->softDeletes();

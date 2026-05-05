@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignUlid('requested_by_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignUlid('processed_by_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('status');
-            $table->rawColumn('amount', 'decimal(12, 2) not null check (amount >= 0)');
+            $table->decimal('amount', 12, 2);
             $table->text('reason')->nullable();
             $table->json('metadata')->nullable();
             $table->timestamp('processed_at')->nullable();

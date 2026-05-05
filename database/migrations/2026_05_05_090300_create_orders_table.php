@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignUlid('user_address_id')->nullable()->constrained('user_addresses')->nullOnDelete();
             $table->string('order_number')->unique();
             $table->unsignedTinyInteger('status')->default(OrderStatus::Pending->value);
-            $table->rawColumn('total_amount', 'decimal(12, 2) not null default 0 check (total_amount >= 0)');
+            $table->decimal('total_amount', 12, 2)->default(0);
             $table->string('shipping_address_line_1');
             $table->string('shipping_address_line_2')->nullable();
             $table->string('shipping_city');

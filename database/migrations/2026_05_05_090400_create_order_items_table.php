@@ -17,11 +17,11 @@ return new class extends Migration
             $table->foreignUlid('product_id')->constrained()->restrictOnDelete();
             $table->string('product_name');
             $table->string('product_sku');
-            $table->rawColumn('quantity', 'integer not null check (quantity > 0)');
-            $table->rawColumn('cancelled_quantity', 'integer not null default 0 check (cancelled_quantity >= 0 and cancelled_quantity <= quantity)');
-            $table->rawColumn('refunded_quantity', 'integer not null default 0 check (refunded_quantity >= 0 and refunded_quantity <= quantity)');
-            $table->rawColumn('unit_price', 'decimal(12, 2) not null check (unit_price >= 0)');
-            $table->rawColumn('line_total', 'decimal(12, 2) not null check (line_total >= 0)');
+            $table->unsignedInteger('quantity');
+            $table->unsignedInteger('cancelled_quantity')->default(0);
+            $table->unsignedInteger('refunded_quantity')->default(0);
+            $table->decimal('unit_price', 12, 2);
+            $table->decimal('line_total', 12, 2);
             $table->timestamps();
 
             $table->index('order_id');
