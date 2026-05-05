@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Contracts\Repositories\OrderRepositoryInterface;
 use App\Filters\OrderFilter;
 use App\Models\Order;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class OrderRepository implements OrderRepositoryInterface
@@ -23,6 +24,13 @@ class OrderRepository implements OrderRepositoryInterface
     public function paginate(OrderFilter $filter, int $perPage = 15): LengthAwarePaginator
     {
         return $filter->apply(Order::with(['user', 'items', 'statusReference']))
+            ->latest()
+            ->paginate($filter->perPage($perPage));
+    }
+
+    public function paginateForUser(OrderFilter $filter, User $user, int $perPage = 15): LengthAwarePaginator
+    {
+        return $filter->apply(Order::with(['items', 'statusReference'])->whereBelongsTo($user))
             ->latest()
             ->paginate($filter->perPage($perPage));
     }

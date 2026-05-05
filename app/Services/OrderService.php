@@ -143,6 +143,11 @@ class OrderService
         return $this->orders->paginate($filter);
     }
 
+    public function getPaginatedOrdersForUser(OrderFilter $filter, User $user): LengthAwarePaginator
+    {
+        return $this->orders->paginateForUser($filter, $user);
+    }
+
     protected function shippingSnapshot(User $user, array $data): array
     {
         if (filled($data['user_address_id'] ?? null)) {
