@@ -1,5 +1,10 @@
 <?php
 
+use App\Models\Order;
+use App\Models\Product;
+use App\Models\User;
+use App\Models\UserAddress;
+use App\Services\OrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,7 +20,7 @@ use Tests\TestCase;
 */
 
 pest()->extend(TestCase::class)
- // ->use(RefreshDatabase::class)
+    ->use(RefreshDatabase::class)
     ->in('Feature');
 
 /*
@@ -47,4 +52,40 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+function createLifecycleProduct(int $stock = 10, int $threshold = 2): Product
+{
+    return Product::create([
+        'sku' => fake()->unique()->bothify('SKU-####'),
+        'name' => 'Lifecycle Product',
+        'price' => 10.00,
+        'stock_quantity' => $stock,
+        'low_stock_threshold' => $threshold,
+        'is_active' => true,
+    ]);
+}
+
+function createLifecycleAddress(User $user): UserAddress
+{
+    return UserAddress::create([
+        'user_id' => $user->id,
+        'address_line_1' => '123 Test Street',
+        'city' => 'Test City',
+        'country' => 'United States',
+        'post_code' => '10001',
+        'is_default' => true,
+    ]);
+}
+
+function createLifecycleOrder(User $user, Product $product, int $quantity = 1): Order
+{
+    $address = createLifecycleAddress($user);
+
+    return app(OrderService::class)->createOrder($user, [
+        'user_address_id' => $address->id,
+        'items' => [
+            ['product_id' => $product->id, 'quantity' => $quantity],
+        ],
+    ]);
 }
