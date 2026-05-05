@@ -9,7 +9,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 import type { ServerFormErrors } from '@/shared/forms/errors';
@@ -24,14 +23,9 @@ const loginSchema = z.object({
 type Props = {
     status?: string;
     canResetPassword: boolean;
-    canRegister: boolean;
 };
 
-export default function Login({
-    status,
-    canResetPassword,
-    canRegister,
-}: Props) {
+export default function Login({ status, canResetPassword }: Props) {
     const [processing, setProcessing] = useState(false);
     const [serverErrors, setServerErrors] = useState<ServerFormErrors>({});
     const form = useForm({
@@ -203,15 +197,6 @@ export default function Login({
                         Log in
                     </Button>
                 </div>
-
-                {canRegister && (
-                    <div className="text-center text-sm text-muted-foreground">
-                        Don't have an account?{' '}
-                        <TextLink href={register()} tabIndex={7}>
-                            Sign up
-                        </TextLink>
-                    </div>
-                )}
             </form>
 
             {status && (
