@@ -2,12 +2,20 @@
 
 namespace App\Providers;
 
+use App\Contracts\Repositories\InventoryLogRepositoryInterface;
+use App\Contracts\Repositories\OrderActivityRepositoryInterface;
+use App\Contracts\Repositories\OrderRepositoryInterface;
+use App\Contracts\Repositories\ProductRepositoryInterface;
 use App\Models\Order;
 use App\Models\Product;
 use App\Observers\OrderObserver;
 use App\Policies\OrderPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\ReportPolicy;
+use App\Repositories\InventoryLogRepository;
+use App\Repositories\OrderActivityRepository;
+use App\Repositories\OrderRepository;
+use App\Repositories\ProductRepository;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +30,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(ProductRepositoryInterface::class, ProductRepository::class);
+        $this->app->bind(OrderRepositoryInterface::class, OrderRepository::class);
+        $this->app->bind(InventoryLogRepositoryInterface::class, InventoryLogRepository::class);
+        $this->app->bind(OrderActivityRepositoryInterface::class, OrderActivityRepository::class);
     }
 
     /**
